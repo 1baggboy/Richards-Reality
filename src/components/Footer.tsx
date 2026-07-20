@@ -5,9 +5,10 @@ interface FooterProps {
   setTab: (tab: string) => void;
   onBookClick: () => void;
   onAdminClick: () => void;
+  googleMapIframe?: string;
 }
 
-export default function Footer({ setTab, onBookClick, onAdminClick }: FooterProps) {
+export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIframe }: FooterProps) {
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -205,7 +206,18 @@ export default function Footer({ setTab, onBookClick, onAdminClick }: FooterProp
         <div className="mt-12 pt-12 border-t border-gray-800 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 rounded-none overflow-hidden h-[180px] bg-white border border-gray-300">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus"
+              src={(() => {
+                if (!googleMapIframe) {
+                  return "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus";
+                }
+                if (googleMapIframe.includes('<iframe')) {
+                  const match = googleMapIframe.match(/src="([^"]+)"/);
+                  if (match && match[1]) {
+                    return match[1];
+                  }
+                }
+                return googleMapIframe;
+              })()}
               width="100%"
               height="100%"
               style={{ border: 0 }}

@@ -17,6 +17,9 @@ export default function App() {
   const [currentTab, setTab] = useState('home');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [isReadingBlog, setIsReadingBlog] = useState(false);
+  const [blogScrollProgress, setBlogScrollProgress] = useState(0);
 
   // Dynamic state loaded from the backend APIs
   const [settings, setSettings] = useState<WebsiteSettings>({
@@ -87,11 +90,42 @@ export default function App() {
 
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = totalHeight > 0 ? (window.scrollY / totalHeight) * 100 : 0;
+      setScrollProgress(progress);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
   }, []);
+
+  useEffect(() => {
+    const handleBlogActive = (e: Event) => {
+      const customEvent = e as CustomEvent<{ active: boolean }>;
+      setIsReadingBlog(customEvent.detail.active);
+      if (!customEvent.detail.active) {
+        setBlogScrollProgress(0);
+      }
+    };
+    const handleBlogScroll = (e: Event) => {
+      const customEvent = e as CustomEvent<{ progress: number }>;
+      setBlogScrollProgress(customEvent.detail.progress);
+    };
+
+    window.addEventListener('blog-active', handleBlogActive);
+    window.addEventListener('blog-scroll', handleBlogScroll);
+    return () => {
+      window.removeEventListener('blog-active', handleBlogActive);
+      window.removeEventListener('blog-scroll', handleBlogScroll);
+    };
+  }, []);
+
+  const activeProgress = isReadingBlog ? blogScrollProgress : scrollProgress;
+  const showProgressBar = currentTab === 'services' || isReadingBlog;
 
   // Sync state if Admin Panel closes
   const handleAdminClose = () => {
@@ -188,6 +222,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-[#0A1D37] flex flex-col font-sans selection:bg-[#C5A02E] selection:text-white">
+      {/* Subtle Progress Bar */}
+      {showProgressBar && (
+        <div className="fixed top-0 left-0 right-0 h-[3px] bg-[#C5A02E]/20 z-[9999] pointer-events-none">
+          <div 
+            className="h-full bg-[#C5A02E] transition-all duration-75 ease-out"
+            style={{ width: `${activeProgress}%` }}
+          />
+        </div>
+      )}
+
       {/* Sticky Top Header Navigation */}
       <Header currentTab={currentTab} setTab={setTab} onBookClick={() => setTab('consultation')} />
 
@@ -580,12 +624,21 @@ export default function App() {
         {/* 3. SERVICES TAB */}
         {currentTab === 'services' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-24 animate-in fade-in duration-200">
-            <div className="space-y-3">
-              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">SERVICE BLUEPRINTS</span>
-              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Our Advisory Services</h2>
-              <p className="max-w-xl text-gray-500 text-sm">
-                Each real estate sub-discipline is managed by a certified specialist under strict fiduciary oversight.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-100 pb-6">
+              <div className="space-y-3">
+                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">SERVICE BLUEPRINTS</span>
+                <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Our Advisory Services</h2>
+                <p className="max-w-xl text-gray-500 text-xs sm:text-sm">
+                  Each real estate sub-discipline is managed by a certified specialist under strict fiduciary oversight.
+                </p>
+              </div>
+              <button
+                onClick={() => window.print()}
+                className="no-print self-start sm:self-auto bg-[#0A1D37] hover:bg-[#C5A02E] text-white px-5 py-2.5 text-xs font-sans font-bold tracking-wider rounded-none transition-colors shadow-md flex items-center gap-2 cursor-pointer shrink-0"
+              >
+                <FileText className="h-4 w-4" />
+                <span>EXPORT PORTFOLIO PDF</span>
+              </button>
             </div>
 
             <div className="space-y-20">
@@ -1113,13 +1166,13 @@ export default function App() {
       </main>
 
       {/* Corporate Footer Section */}
-      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} onAdminClick={() => setIsAdminOpen(true)} />
+      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} onAdminClick={() => setIsAdminOpen(true)} googleMapIframe={settings.general.googleMapIframe} />
 
       {/* Floating Back to Top Button */}
       {showScrollTop && (
         <button
           onClick={handleScrollToTop}
-          className="fixed bottom-6 left-6 z-40 bg-[#F4F7F9] border border-gray-300 text-[#C5A02E] p-3 rounded-full hover:bg-gray-200 hover:text-[#0A1D37] transition-all shadow-2xl hover:scale-110 active:scale-95 flex items-center justify-center cursor-pointer"
+          className="no-print fixed bottom-6 left-6 z-40 bg-[#F4F7F9] border border-gray-300 text-[#C5A02E] p-3 rounded-full hover:bg-gray-200 hover:text-[#0A1D37] transition-all shadow-2xl hover:scale-110 active:scale-95 flex items-center justify-center cursor-pointer"
           title="Back to Top"
         >
           <ArrowUp className="h-5 w-5" />

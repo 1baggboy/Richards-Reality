@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BlogPost } from '../types';
-import { Search, Calendar, User, Clock, ChevronRight, X } from 'lucide-react';
+import { Search, Calendar, User, Clock, ChevronRight, X, FileText } from 'lucide-react';
 
 interface BlogGridProps {
   blogs: BlogPost[];
@@ -11,6 +11,20 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [readingBlog, setReadingBlog] = useState<BlogPost | null>(null);
+
+  useEffect(() => {
+    if (readingBlog) {
+      document.body.classList.add('modal-open');
+      window.dispatchEvent(new CustomEvent('blog-active', { detail: { active: true } }));
+    } else {
+      document.body.classList.remove('modal-open');
+      window.dispatchEvent(new CustomEvent('blog-active', { detail: { active: false } }));
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+      window.dispatchEvent(new CustomEvent('blog-active', { detail: { active: false } }));
+    };
+  }, [readingBlog]);
 
   // Derive unique categories
   const categories = ['All', ...Array.from(new Set(blogs.map(b => b.category)))];
@@ -146,7 +160,15 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
       {/* Reader Modal */}
       {readingBlog && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-none max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+          <div 
+            onScroll={(e) => {
+              const target = e.currentTarget;
+              const total = target.scrollHeight - target.clientHeight;
+              const progress = total > 0 ? (target.scrollTop / total) * 100 : 0;
+              window.dispatchEvent(new CustomEvent('blog-scroll', { detail: { progress } }));
+            }}
+            className="bg-white border border-gray-200 rounded-none max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200"
+          >
             {/* Header / Cover */}
             <div className="relative h-64 sm:h-80 w-full">
               <img
@@ -179,14 +201,23 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
                 {readingBlog.title}
               </h3>
 
-              <div className="flex items-center gap-3 py-4 border-y border-gray-200">
-                <div className="h-10 w-10 rounded-full bg-[#C5A02E]/10 text-[#C5A02E] flex items-center justify-center font-bold text-sm">
-                  {readingBlog.author.substring(0, 2)}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-y border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-[#C5A02E]/10 text-[#C5A02E] flex items-center justify-center font-bold text-sm">
+                    {readingBlog.author.substring(0, 2)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#0A1D37]">{readingBlog.author}</p>
+                    <p className="text-[10px] text-slate-500 font-sans">Richards Realty Research & Intelligence</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-[#0A1D37]">{readingBlog.author}</p>
-                  <p className="text-[10px] text-slate-500 font-sans">Richards Realty Research & Intelligence</p>
-                </div>
+                <button
+                  onClick={() => window.print()}
+                  className="no-print self-start sm:self-auto bg-[#0A1D37] hover:bg-[#C5A02E] text-white px-4 py-2.5 text-xs font-sans font-bold tracking-wider rounded-none transition-colors flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>PRINT INSIGHT BRIEF</span>
+                </button>
               </div>
 
               {/* Body text with paragraphs */}

@@ -1123,6 +1123,48 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Google Map Embed Code or URL</label>
+                    <textarea
+                      value={settings.general.googleMapIframe}
+                      onChange={(e) => setSettings({ ...settings, general: { ...settings.general, googleMapIframe: e.target.value } })}
+                      className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E] font-mono"
+                      rows={2}
+                      placeholder="Paste Google Map embed URL (src) or full <iframe> element..."
+                    />
+                    <p className="text-[9px] text-gray-400">Pasting the full &lt;iframe&gt; code from Google Maps share options will automatically extract the source location.</p>
+                  </div>
+
+                  {/* Interactive Map Live Preview */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 block">Interactive Live Map Preview</label>
+                    <div className="w-full h-[180px] bg-gray-100 border border-gray-300 rounded-none overflow-hidden relative">
+                      <iframe
+                        src={(() => {
+                          const srcOrHtml = settings.general.googleMapIframe;
+                          if (!srcOrHtml) {
+                            // Default to SF HQ Location
+                            return "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus";
+                          }
+                          if (srcOrHtml.includes('<iframe')) {
+                            const match = srcOrHtml.match(/src="([^"]+)"/);
+                            if (match && match[1]) {
+                              return match[1];
+                            }
+                          }
+                          return srcOrHtml;
+                        })()}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        allowFullScreen={false}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title="Google Map Settings Preview"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* SEO Metadata and Social split */}
