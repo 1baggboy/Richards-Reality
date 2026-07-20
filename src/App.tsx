@@ -1,0 +1,1138 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { 
+  Building2, Phone, Mail, MapPin, Clock, Lock, ShieldCheck, ChevronDown, 
+  ChevronRight, Award, Users, CheckCircle2, Star, ArrowUpRight, Search, 
+  ChevronLeft, ArrowUp, Send, FileText, Calendar, Plus, Link as LinkIcon, HelpCircle, X
+} from 'lucide-react';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import BookingForm from './components/BookingForm';
+import ContactForm from './components/ContactForm';
+import BlogGrid from './components/BlogGrid';
+import AdminPanel from './components/AdminPanel';
+import { BlogPost, TeamMember, GalleryItem, JobListing, WebsiteSettings, Testimonial } from './types';
+
+export default function App() {
+  const [currentTab, setTab] = useState('home');
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Dynamic state loaded from the backend APIs
+  const [settings, setSettings] = useState<WebsiteSettings>({
+    general: {
+      companyName: "Richards Realty LLC",
+      phone: "+1 (800) 555-0190",
+      email: "consulting@richardsrealty.com",
+      address: "600 Montgomery St, 41st Floor, San Francisco, CA 94111",
+      workingHours: "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment",
+      whatsappNumber: "18005550190",
+      googleMapIframe: ""
+    },
+    seo: {
+      metaTitle: "Richards Realty LLC | Elite Corporate Real Estate Advisory & Valuation",
+      metaDescription: "Richards Realty LLC is a premier corporate real estate consultancy.",
+      openGraphImage: ""
+    },
+    social: { linkedin: "", twitter: "", facebook: "", instagram: "" }
+  });
+
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [careers, setCareers] = useState<JobListing[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+
+  // FAQ open states
+  const [faqOpen, setFaqOpen] = useState<Record<string, boolean>>({});
+
+  // Active Job application state
+  const [applyingJob, setApplyingJob] = useState<JobListing | null>(null);
+  const [appFormData, setAppFormData] = useState({ fullName: '', email: '', phone: '', coverLetter: '', resumeName: '', resumeBase64: '' });
+  const [appSuccess, setAppSuccess] = useState(false);
+  const [appLoading, setAppLoading] = useState(false);
+
+  // Gallery Active Lightbox state
+  const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
+  const [activeGalleryFilter, setActiveGalleryFilter] = useState('All');
+
+  // Stats Counters
+  const [stats, setStats] = useState({ years: 0, projects: 0, clients: 0, consultants: 0 });
+
+  // Load public metrics from server
+  const loadPublicData = async () => {
+    try {
+      const [resSettings, resBlogs, resTeam, resGallery, resCareers, resTestimonials] = await Promise.all([
+        fetch('/api/settings').then(r => r.json()),
+        fetch('/api/blogs').then(r => r.json()),
+        fetch('/api/team').then(r => r.json()),
+        fetch('/api/gallery').then(r => r.json()),
+        fetch('/api/careers').then(r => r.json()),
+        fetch('/api/testimonials').then(r => r.json())
+      ]);
+
+      if (resSettings && !resSettings.error) setSettings(resSettings);
+      if (Array.isArray(resBlogs)) setBlogs(resBlogs);
+      if (Array.isArray(resTeam)) setTeam(resTeam);
+      if (Array.isArray(resGallery)) setGallery(resGallery);
+      if (Array.isArray(resCareers)) setCareers(resCareers);
+      if (Array.isArray(resTestimonials)) setTestimonials(resTestimonials);
+    } catch (err) {
+      console.error("Failed synchronizing corporate database metrics:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadPublicData();
+
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Sync state if Admin Panel closes
+  const handleAdminClose = () => {
+    setIsAdminOpen(false);
+    loadPublicData();
+  };
+
+  // Increment Statistics animation on Home page mount
+  useEffect(() => {
+    if (currentTab === 'home') {
+      setStats({ years: 0, projects: 0, clients: 0, consultants: 0 });
+      const duration = 1500;
+      const steps = 50;
+      const interval = duration / steps;
+      let step = 0;
+
+      const timer = setInterval(() => {
+        step++;
+        setStats({
+          years: Math.min(Math.round((25 / steps) * step), 25),
+          projects: Math.min(Math.round((480 / steps) * step), 480),
+          clients: Math.min(Math.round((98 / steps) * step), 98),
+          consultants: Math.min(Math.round((15 / steps) * step), 15),
+        });
+
+        if (step >= steps) clearInterval(timer);
+      }, interval);
+
+      return () => clearInterval(timer);
+    }
+  }, [currentTab]);
+
+  // Handle Application Submit
+  const handleAppSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appFormData.fullName || !appFormData.email || !appFormData.phone || !applyingJob) {
+      alert("Please provide all required profile details.");
+      return;
+    }
+    setAppLoading(true);
+
+    try {
+      const response = await fetch(`/api/careers/${applyingJob.id}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appFormData),
+      });
+
+      if (response.ok) {
+        setAppSuccess(true);
+        setTimeout(() => {
+          setAppSuccess(false);
+          setApplyingJob(null);
+          setAppFormData({ fullName: '', email: '', phone: '', coverLetter: '', resumeName: '', resumeBase64: '' });
+        }, 3000);
+      } else {
+        const d = await response.json();
+        alert(d.error || "Submission failed.");
+      }
+    } catch (err) {
+      alert("Could not upload dossier to administration portal.");
+    } finally {
+      setAppLoading(false);
+    }
+  };
+
+  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAppFormData({
+        ...appFormData,
+        resumeName: file.name,
+        resumeBase64: reader.result as string
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleFaq = (key: string) => {
+    setFaqOpen(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+
+
+  // Gallery items category filter logic
+  const filteredGallery = gallery.filter(item => activeGalleryFilter === 'All' || item.category === activeGalleryFilter);
+
+  return (
+    <div className="min-h-screen bg-white text-[#0A1D37] flex flex-col font-sans selection:bg-[#C5A02E] selection:text-white">
+      {/* Sticky Top Header Navigation */}
+      <Header currentTab={currentTab} setTab={setTab} onBookClick={() => setTab('consultation')} />
+
+      {/* RENDER PAGES DYNAMICALLY */}
+      <main className="flex-grow pt-[72px]">
+
+        {/* 1. HOME TAB */}
+        {currentTab === 'home' && (
+          <div className="space-y-0 animate-in fade-in duration-300">
+            {/* Hero Section */}
+            <section className="relative h-screen flex items-center justify-center overflow-hidden bg-[#0A1D37]">
+              <div className="absolute inset-0 z-0 opacity-40">
+                <img 
+                  src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80" 
+                  alt="City Commercial Skyline" 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#0A1D37] via-[#0A1D37]/90 to-transparent"></div>
+              </div>
+              
+              <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+                <div className="w-12 h-1 bg-[#C5A02E] mx-auto mb-6"></div>
+                <h1 className="font-serif font-extrabold text-4xl sm:text-6xl lg:text-7xl text-white tracking-tight leading-tight">
+                  Your Trusted Partner in<br />
+                  <span className="italic text-[#C5A02E] font-normal">Real Estate Excellence</span>
+                </h1>
+                <p className="max-w-2xl mx-auto text-gray-300 text-sm sm:text-lg leading-relaxed font-sans font-medium">
+                  Providing professional real estate consultancy, investment advisory, certified valuation audits, legal documentation assistance, and tailored solutions with absolute integrity.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                  <button 
+                    onClick={() => setTab('consultation')}
+                    className="w-full sm:w-auto bg-[#C5A02E] hover:bg-[#A68625] text-white font-sans font-bold text-xs tracking-wider px-8 py-4 rounded-none transition-all duration-150 cursor-pointer shadow-lg uppercase"
+                  >
+                    Discover Our Expertise
+                  </button>
+                  <button 
+                    onClick={() => setTab('services')}
+                    className="w-full sm:w-auto bg-white text-[#0A1D37] hover:bg-gray-100 font-sans font-bold text-xs tracking-wider px-8 py-4 rounded-none transition-all duration-150 cursor-pointer uppercase"
+                  >
+                    Our Services
+                  </button>
+                </div>
+              </div>
+              
+              {/* Bottom stats indicator */}
+              <div className="absolute bottom-0 right-0 z-20 bg-white p-8 hidden md:grid grid-cols-2 gap-8 shadow-2xl border-l-4 border-[#C5A02E]">
+                <div className="text-center px-4">
+                  <div className="text-3xl font-serif font-bold text-[#0A1D37]">{stats.years}+</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-gray-500 font-bold">Years Experience</div>
+                </div>
+                <div className="text-center px-4">
+                  <div className="text-3xl font-serif font-bold text-[#0A1D37]">{stats.clients}k</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-gray-500 font-bold">Clients Advised</div>
+                </div>
+              </div>
+            </section>
+
+            {/* About brief teaser section */}
+            <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+              <div className="lg:col-span-6 space-y-6">
+                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">ABOUT RICHARDS REALTY</span>
+                <h2 className="font-serif font-bold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight leading-tight">
+                  Over a Quarter Century of Elite Commercial Real Estate Mastery
+                </h2>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Established in California, Richards Realty LLC is an accredited advisory firm providing commercial zoning, underwriting audits, facility intelligence, and certified valuations. We strictly operate as a premium corporate consultancy.
+                </p>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  We maintain absolute structural boundaries: we represent enterprise acquisitions under total fiduciary loyalty and never operate commercial marketplace lists or retail portals.
+                </p>
+                <div className="pt-2">
+                  <button 
+                    onClick={() => setTab('about')}
+                    className="text-xs font-bold text-[#C5A02E] hover:text-[#A68625] border-b-2 border-[#C5A02E]/20 hover:border-[#C5A02E] pb-1.5 transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    Read Company Background <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="lg:col-span-6 rounded-none overflow-hidden h-[360px] sm:h-[450px] shadow-2xl relative border border-gray-200">
+                <img 
+                  src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" 
+                  alt="Boardroom advisory" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </section>
+
+            {/* 8 Core Services Teaser Section */}
+            <section className="py-24 bg-[#F4F7F9]/40 border-y border-gray-200">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+                <div className="text-center space-y-3">
+                  <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">CORE DOMAINS</span>
+                  <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">Our Advisory Services</h3>
+                  <p className="max-w-xl mx-auto text-gray-500 text-xs sm:text-sm">
+                    Strategic, RICS-compliant, and transactional underwriting solutions built for developers, institutional entities, and private capital.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {[
+                    { name: 'Real Estate Consultancy', desc: 'Lease audits, portfolio restructuring, workplace optimization, and landlord-tenant strategic briefings.' },
+                    { name: 'Property Valuation Services', desc: 'RICS Red Book compliant certified evaluations for auditing, asset financing, and portfolio validation.' },
+                    { name: 'Investment Advisory', desc: 'Macroeconomic modeling, discounted cash flow (DCF) underwriting, risk indices, and acquisition advisory.' },
+                    { name: 'Facility Management Advice', desc: 'Long-term operational risk management audits, energy compliance modeling, and lifecycle expenditure mapping.' },
+                    { name: 'Property Documentation Assistance', desc: 'Municipal zoning validation, title audits, and technical document alignment in regional registries.' },
+                    { name: 'Development Advisory', desc: 'Architectural envelope modeling, feasibility studies, zoning variances, and general zoning audits.' },
+                    { name: 'Project Management Advisory', desc: 'Technical developer representation, cost estimation analysis, procurement auditing, and milestone audits.' },
+                    { name: 'Legal Consultation', desc: 'Eminent domain consultation, contractual boundary reviews, easement audits, and technical legal diagnostics.' }
+                  ].map((svc, idx) => (
+                    <motion.div 
+                      key={idx}
+                      whileHover={{ y: -5, rotate: 1 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="group bg-white border border-gray-200 p-6 rounded-none flex flex-col justify-between hover:border-gray-300 transition-all shadow-xl"
+                      
+                    >
+                      <div className="space-y-4">
+                        <div className="h-10 w-10 rounded-none bg-[#C5A02E]/10 text-[#C5A02E] flex items-center justify-center font-bold text-sm font-sans">
+                          0{idx + 1}
+                        </div>
+                        <h4 className="font-serif font-bold text-base text-[#0A1D37] tracking-tight group-hover:text-[#C5A02E] transition-colors">
+                          {svc.name}
+                        </h4>
+                        <p className="text-gray-500 text-xs leading-relaxed">{svc.desc}</p>
+                      </div>
+                      <div className="pt-6">
+                        <button 
+                          onClick={() => setTab('services')}
+                          className="text-xs text-[#C5A02E] group-hover:underline font-semibold cursor-pointer"
+                        >
+                          Learn Detail →
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Why Choose Section */}
+            <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+              <div className="text-center space-y-3">
+                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">THE RICHARDS DIFFERENCE</span>
+                <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">Why Choose Richards Realty LLC</h3>
+                <p className="max-w-xl mx-auto text-gray-500 text-xs sm:text-sm">
+                  We elevate structural integrity to the center of our advisory business. Discover how we protect your long-term capital assets.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[
+                  { title: 'Experienced Professionals', desc: 'Advisors averaging 15+ years in senior institutional acquisition profiles.' },
+                  { title: 'Absolute Integrity', desc: 'A fiduciary framework shielding clients against transaction conflicts of interest.' },
+                  { title: 'Full Transparency', desc: 'Uncompromised, evidence-backed valuations free from capital commission bias.' },
+                  { title: 'Client Satisfaction', desc: 'Multi-decade relationships advising high-net-worth families and Fortune 500 panels.' },
+                  { title: 'Tailored Solutions', desc: 'No boilerplate. Bespoke macroeconomic underwriting tailored to your portfolio objectives.' },
+                  { title: 'Industry Expertise', desc: 'Unrivaled command of zoning laws, RICS guidelines, and local real estate parameters.' },
+                  { title: 'Professional Guidance', desc: 'Direct access to founding partners during complex legal zoning audits.' }
+                ].map((item, idx) => (
+                  <motion.div 
+                    key={idx} 
+                    whileHover={{ y: -5, rotate: 1 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                    className="bg-[#F4F7F9]/30 border border-gray-200 p-6 rounded-none space-y-3 shadow-lg"
+                  >
+                    <div className="inline-flex p-2 bg-[#C5A02E]/10 text-[#C5A02E] rounded-none">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-serif font-bold text-sm text-[#0A1D37]">{item.title}</h4>
+                    <p className="text-gray-500 text-xs leading-relaxed">{item.desc}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </section>
+
+            {/* Counters / Stats Section */}
+            <section className="bg-[#F4F7F9] border-y border-gray-200 py-20 text-center">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="space-y-2">
+                  <p className="text-4xl sm:text-5xl font-serif font-bold text-[#0A1D37]">{stats.years}+</p>
+                  <p className="text-xs uppercase font-sans tracking-widest text-gray-500">Years of Experience</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-4xl sm:text-5xl font-serif font-bold text-[#0A1D37]">{stats.projects}+</p>
+                  <p className="text-xs uppercase font-sans tracking-widest text-gray-500">Projects Completed</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-4xl sm:text-5xl font-serif font-bold text-[#0A1D37]">{stats.clients}%</p>
+                  <p className="text-xs uppercase font-sans tracking-widest text-gray-500">Client Satisfaction</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-4xl sm:text-5xl font-serif font-bold text-[#0A1D37]">{stats.consultants}+</p>
+                  <p className="text-xs uppercase font-sans tracking-widest text-gray-500">Professional Consultants</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Mission & Vision Banners */}
+            <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <div className="bg-[#F4F7F9]/40 border border-gray-200 p-8 sm:p-10 rounded-none space-y-4 shadow-xl">
+                <span className="text-[#C5A02E] font-sans text-[10px] uppercase tracking-widest font-bold block">OUR MISSION</span>
+                <h4 className="font-serif font-extrabold text-2xl text-[#0A1D37]">To Deliver Structural Integrity & Professionalism</h4>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                  To provide absolute standard of real estate advisory, offering verified, unbiased, data-backed reports that help major institutions protect capital and allocate development assets with absolute confidence.
+                </p>
+              </div>
+
+              <div className="bg-[#F4F7F9]/40 border border-gray-200 p-8 sm:p-10 rounded-none space-y-4 shadow-xl">
+                <span className="text-[#C5A02E] font-sans text-[10px] uppercase tracking-widest font-bold block">OUR VISION</span>
+                <h4 className="font-serif font-extrabold text-2xl text-[#0A1D37]">Shaping Fiduciary Commercial Standards</h4>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                  To become the absolute standard for premium real estate consultancy. We aim to shield clients from biased agency frameworks, pushing industry ethics forward.
+                </p>
+              </div>
+            </section>
+
+            {/* Core Values Section */}
+            <section className="py-24 bg-[#F4F7F9]/20 border-t border-gray-200">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+                <div className="text-center space-y-3">
+                  <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">ETHICAL ANCHORS</span>
+                  <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">Our Core Values</h3>
+                  <p className="max-w-xl mx-auto text-gray-500 text-xs sm:text-sm">
+                    Every zoning advisory, transaction underwriting, and certified valuation reports is audited against our core principles.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[
+                    { val: 'Integrity', desc: 'Our word is absolute. We do not participate in market brokers commissions.' },
+                    { val: 'Professionalism', desc: 'Adhering to strict international standards of the Royal Institution of Chartered Surveyors (RICS).' },
+                    { val: 'Innovation', desc: 'Harnessing machine intelligence and GIS data mapping for forward portfolio insights.' },
+                    { val: 'Transparency', desc: 'Open ledger accounting and clear methodology reports on all valuation projects.' },
+                    { val: 'Excellence', desc: 'Delivering under peerless standard of analytical prose and detail execution.' },
+                    { val: 'Customer Focus', desc: 'Our clients interests form the absolute apex of our strategic fiduciaries.' },
+                    { val: 'Accountability', desc: 'Full corporate liability and insurance cover backing our structural briefs.' },
+                    { val: 'Teamwork', desc: 'Cross-functional alignments merging analysts, lawyers, and surveyors.' }
+                  ].map((item, idx) => (
+                    <motion.div 
+                      key={idx} 
+                      whileHover={{ y: -5, rotate: 1 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="bg-[#F4F7F9]/40 border border-gray-200 p-6 rounded-none space-y-2"
+                    >
+                      <h4 className="font-serif font-bold text-[#0A1D37] text-base">{item.val}</h4>
+                      <p className="text-gray-500 text-xs leading-relaxed">{item.desc}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Testimonials Slider */}
+            {testimonials.length > 0 && (
+              <section className="py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+                <div className="text-center space-y-3">
+                  <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">VERIFIED REFS</span>
+                  <h3 className="font-serif font-extrabold text-3xl text-[#0A1D37] tracking-tight">Client Endorsements</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {testimonials.map((test) => (
+                    <div key={test.id} className="bg-[#F4F7F9]/40 border border-gray-200 p-6 rounded-none flex flex-col justify-between space-y-4 relative">
+                      <div className="space-y-2">
+                        <div className="flex text-[#C5A02E] gap-0.5">
+                          {Array.from({ length: test.rating }).map((_, i) => (
+                            <Star key={i} className="h-3.5 w-3.5 fill-current" />
+                          ))}
+                        </div>
+                        <p className="text-[#0A1D37] text-xs italic leading-relaxed font-sans">
+                          "{test.review}"
+                        </p>
+                      </div>
+                      <div className="pt-3 border-t border-gray-200/50">
+                        <p className="text-xs font-bold text-[#0A1D37]">{test.name}</p>
+                        <p className="text-[10px] text-slate-500 font-sans uppercase">{test.company}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+
+
+            {/* Latest Insights Teaser */}
+            {blogs.length > 0 && (
+              <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+                <div className="flex items-end justify-between border-b border-gray-200 pb-4">
+                  <div className="space-y-1">
+                    <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">INTELLIGENCE DIARY</span>
+                    <h3 className="font-serif font-extrabold text-2xl sm:text-3xl text-[#0A1D37] tracking-tight">Latest Market Insights</h3>
+                  </div>
+                  <button 
+                    onClick={() => setTab('blog')}
+                    className="text-xs font-semibold text-[#C5A02E] hover:underline cursor-pointer"
+                  >
+                    View All Publications →
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {blogs.slice(0, 3).map((blog) => (
+                    <div 
+                      key={blog.id}
+                      onClick={() => setTab('blog')}
+                      className="group bg-[#F4F7F9]/30 border border-gray-200 rounded-none overflow-hidden flex flex-col justify-between h-full hover:border-gray-300 transition-all cursor-pointer"
+                    >
+                      <div className="h-44 bg-[#F4F7F9] overflow-hidden">
+                        <img src={blog.image} alt={blog.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                      </div>
+                      <div className="p-5 space-y-3 flex-grow flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <span className="text-[9px] text-[#C5A02E] font-sans uppercase tracking-wider">{blog.category}</span>
+                          <h4 className="font-serif font-bold text-[#0A1D37] leading-snug line-clamp-2 group-hover:text-[#C5A02E] transition-colors">{blog.title}</h4>
+                        </div>
+                        <div className="pt-3 border-t border-gray-200 flex items-center justify-between text-[11px] text-slate-500 font-sans">
+                          <span>{blog.date}</span>
+                          <span className="text-[#C5A02E] group-hover:translate-x-1 transition-transform flex items-center gap-0.5">Read <ChevronRight className="h-3.5 w-3.5" /></span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+
+          </div>
+        )}
+
+        {/* 2. ABOUT TAB */}
+        {currentTab === 'about' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 animate-in fade-in duration-200">
+            <div className="space-y-3">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">CORPORATE PROFILE</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">About Richards Realty LLC</h2>
+              <p className="max-w-2xl text-gray-500 text-sm">
+                A premium, client-aligned advisory specializing in commercial zoning audits, municipal registries, facility operations, and RICS Red Book compliant valuations.
+              </p>
+            </div>
+
+            {/* Timelines and grid splits */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              <div className="lg:col-span-6 space-y-6">
+                <h3 className="font-serif font-extrabold text-2xl text-[#0A1D37] tracking-tight">Our Corporate Story</h3>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                  Richards Realty LLC was established as an independent alternative to large, transaction-driven real estate brokerages. Seeing a conflict of interest in agencies that represent both buyers and sellers while seeking sales commission incentives, we chose to design a fee-only, fiduciary-aligned corporate consultancy.
+                </p>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                  Over the past 25 years, we have structured acquisition reviews, verified environmental compliance criteria, secured zoning approvals, and published certified RICS valuation books for pension schemes, corporate boards, and family offices.
+                </p>
+              </div>
+              <div className="lg:col-span-6 space-y-4 bg-[#F4F7F9]/40 p-6 sm:p-8 rounded-none border border-gray-200">
+                <span className="text-[#C5A02E] font-sans text-[10px] uppercase font-bold block tracking-wider">A Message from our CEO</span>
+                <p className="text-[#0A1D37] text-xs italic leading-relaxed">
+                  "At Richards Realty LLC, we believe that real estate excellence is built upon absolute transparency and fiduciary loyalty. We have chosen never to participate in listing markets or transaction brokerages to maintain completely objective advice for our clients. That is our structural ceiling, and it remains our absolute pride."
+                </p>
+                <div className="pt-2 border-t border-gray-200">
+                  <p className="text-xs font-bold text-[#0A1D37]">Richard V. Henderson</p>
+                  <p className="text-[10px] text-slate-500 font-sans">Founding Partner & Chief Executive Officer</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline component */}
+            <div className="space-y-8 pt-8">
+              <span className="text-xs text-[#0A1D37] font-bold uppercase tracking-wider block">Company Timeline</span>
+              <div className="relative border-l border-gray-300 ml-4 space-y-10">
+                {[
+                  { yr: '2001', title: 'Firm Conception', desc: 'Richard Henderson establishes the firm in San Francisco, dedicating resources strictly to fee-only capital underwriting and zoning advisory.' },
+                  { yr: '2009', title: 'Valuations Expansion', desc: 'Elena Rostova joins the leadership panel, launching our RICS Red Book compliant commercial valuations department.' },
+                  { yr: '2016', title: 'Corporate Footprint Planning', desc: 'Advisory footprints expand nationally, offering Fortune 500 tech firms advisory in restructuring complex hub offices.' },
+                  { yr: '2026', title: 'Modern GIS Integrations', desc: 'Integrating geographical mapping models for carbon audit compliance and environmental valuation offsets.' }
+                ].map((item, idx) => (
+                  <div key={idx} className="relative pl-8">
+                    <div className="absolute -left-1.5 top-1.5 h-3.5 w-3.5 bg-[#C5A02E] rounded-full border-4 border-slate-950"></div>
+                    <span className="text-[#C5A02E] font-sans text-sm font-bold block">{item.yr}</span>
+                    <h4 className="font-serif font-bold text-sm text-[#0A1D37] pt-0.5">{item.title}</h4>
+                    <p className="text-gray-500 text-xs leading-relaxed max-w-2xl mt-0.5">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. SERVICES TAB */}
+        {currentTab === 'services' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-24 animate-in fade-in duration-200">
+            <div className="space-y-3">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">SERVICE BLUEPRINTS</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Our Advisory Services</h2>
+              <p className="max-w-xl text-gray-500 text-sm">
+                Each real estate sub-discipline is managed by a certified specialist under strict fiduciary oversight.
+              </p>
+            </div>
+
+            <div className="space-y-20">
+              {[
+                { name: 'Real Estate Consultancy', tag: 'CORPORATE SOLUTIONS', desc: 'We deliver comprehensive workplace analytics, lease audits, and footprint planning structures.', benefits: ['Complete portfolio diagnostic auditing', 'Average overhead reduction of 30%', 'Landlord strategic alignment analyses'], process: 'Initial lease portfolio data ingestion → Personnel occupancy analytics study → Custom footprint restructuring design proposal.' },
+                { name: 'Property Valuation Services', tag: 'RICS COMPLIANT', desc: 'Chartered surveyors deliver certified valuation books backed by DCF models for banks and audits.', benefits: ['RICS Red Book guidelines adherence', 'Certified asset financing valuation profiles', 'Independent methodology free of broker bias'], process: 'Regional technical site audit → Market transactional underwriting comps → Discounted cash flow (DCF) drafting → Accredited book release.' },
+                { name: 'Investment Advisory', tag: 'FINANCIAL INTELLIGENCE', desc: 'Secure asset allocation matrices and macroeconomic risk analysis tailored to private equity and family boards.', benefits: ['Advanced Argus and Excel scenario models', 'Zoning risk mitigation overlays', 'Yield and capitalization rate auditing'], process: 'Briefing objective identification → GIS zoning risk check → Underwriting modeling compilation → Executive investment briefing.' },
+                { name: 'Facility Management Advice', tag: 'OPERATIONAL SAFETY', desc: 'Lifecycle asset modeling and environmental compliance planning to protect assets from obsolescence.', benefits: ['LEED and carbon carbon tax audit mitigations', 'Equipment lifecycle cost predictions', 'Operational efficiency gains'], process: 'Physical mechanical inspection → Compliance delta auditing → Operational roadmap release.' },
+                { name: 'Property Documentation Assistance', tag: 'ZONING & BOUNDARY', desc: 'Secure technical zoning variances and clean municipal land registration records.', benefits: ['Registry boundary diagnostic auditing', 'Direct local zoning coordination', 'Variance submission assistance'], process: 'Land record ingestion → Registry delta diagnosis → Municipal variance filing.' },
+                { name: 'Legal Consultation', tag: 'MUNICIPAL CODES', desc: 'Zoning boundary assessments, easement audits, and eminent domain advice under professional standards.', benefits: ['Municipal law expertise', 'Zoning dispute mitigation', 'Contractual diagnostic reviews'], process: 'Legal case ingestion → Code auditing review → Municipal resolution roadmap.' }
+              ].map((svc, i) => (
+                <section key={i} className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start border-b border-gray-200 pb-16 last:border-b-0">
+                  <div className="lg:col-span-5 space-y-4">
+                    <span className="text-[#C5A02E] font-sans text-[9px] uppercase tracking-wider font-bold bg-[#C5A02E]/10 px-2.5 py-1 rounded-none inline-block">{svc.tag}</span>
+                    <h3 className="font-serif font-extrabold text-2xl text-[#0A1D37] tracking-tight">{svc.name}</h3>
+                    <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">{svc.desc}</p>
+                    <div className="pt-4">
+                      <button 
+                        onClick={() => setTab('consultation')}
+                        className="bg-[#F4F7F9] hover:bg-gray-200 text-[#0A1D37] border border-gray-300 text-xs font-bold py-2.5 px-5 rounded-none cursor-pointer"
+                      >
+                        Request Service Consult
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-7 space-y-6 bg-[#F4F7F9]/20 border border-gray-200 p-6 rounded-none font-sans">
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-[#0A1D37] uppercase font-bold tracking-wider block">Key Benefits</span>
+                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
+                        {svc.benefits.map((b, idx) => (
+                          <li key={idx} className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-[#C5A02E] shrink-0" />
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="space-y-1.5 pt-4 border-t border-gray-200 text-xs">
+                      <span className="text-[10px] text-slate-500 uppercase font-sans tracking-wider block">Process Flow</span>
+                      <p className="text-gray-600 italic font-sans leading-relaxed">{svc.process}</p>
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 4. MISSION & VISION TAB */}
+        {currentTab === 'mission' && (
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 animate-in fade-in duration-200">
+            <div className="space-y-3 text-center">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">FOUNDING MOTIVATIONS</span>
+              <h2 className="font-serif font-extrabold text-4xl text-[#0A1D37] tracking-tight">Our Mission & Vision</h2>
+              <p className="max-w-lg mx-auto text-gray-500 text-xs sm:text-sm">
+                How Richards Realty LLC builds trust and sets premium standards across California's real estate domains.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-8">
+              <div className="bg-[#F4F7F9]/40 border border-gray-200 p-8 rounded-none space-y-4">
+                <div className="h-10 w-10 bg-[#C5A02E]/10 text-[#C5A02E] rounded-none flex items-center justify-center font-bold font-sans">01</div>
+                <h3 className="font-serif font-bold text-xl text-[#0A1D37]">Our Core Mission</h3>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                  To offer completely unbiased, data-backed commercial valuations and consulting reports that help enterprise businesses preserve capital, execute zoning processes cleanly, and select office locations with absolute fiduciary clarity.
+                </p>
+              </div>
+
+              <div className="bg-[#F4F7F9]/40 border border-gray-200 p-8 rounded-none space-y-4">
+                <div className="h-10 w-10 bg-[#C5A02E]/10 text-[#C5A02E] rounded-none flex items-center justify-center font-bold font-sans">02</div>
+                <h3 className="font-serif font-bold text-xl text-[#0A1D37]">Our Strategic Vision</h3>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
+                  To prove that premium commercial real estate advice thrives best when separated from marketing listing marketplaces and brokerage commissions. We aim to elevate California's real estate consultancy to a true fee-only professional discipline.
+                </p>
+              </div>
+            </div>
+
+            {/* Core values cards list */}
+            <div className="space-y-6 pt-12">
+              <span className="text-xs text-[#0A1D37] font-bold uppercase tracking-wider block text-center">Our Core Values</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {['Integrity', 'Professionalism', 'Innovation', 'Transparency', 'Excellence', 'Customer Focus', 'Accountability', 'Teamwork'].map((val, idx) => (
+                  <motion.div 
+                    key={idx} 
+                    whileHover={{ y: -5, rotate: 1 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                    className="bg-[#F4F7F9]/20 border border-gray-200 p-6 rounded-none text-center"
+                  >
+                    <span className="text-[#C5A02E] font-sans text-xs font-bold block">0{idx + 1}</span>
+                    <h4 className="font-serif font-bold text-[#0A1D37] text-sm pt-1">{val}</h4>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. TEAM TAB */}
+        {currentTab === 'team' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+            <div className="space-y-3">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">PARTNERS & ADVISORS</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Meet Our Professional Team</h2>
+              <p className="max-w-2xl text-gray-500 text-sm">
+                Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Richards Realty LLC.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {team.map((member) => (
+                <div key={member.id} className="bg-[#F4F7F9]/40 border border-gray-200 rounded-none overflow-hidden flex flex-col justify-between shadow-xl">
+                  <div className="h-64 bg-gray-100 overflow-hidden">
+                    <img src={member.image} alt={member.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                  <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="font-serif font-bold text-base text-[#0A1D37]">{member.name}</h4>
+                      <p className="text-xs text-[#C5A02E] font-sans uppercase tracking-wide">{member.position}</p>
+                      <p className="text-gray-500 text-xs leading-relaxed pt-2 line-clamp-4">{member.bio}</p>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200 flex items-center justify-between text-xs font-sans">
+                      <a href={`mailto:${member.email}`} className="hover:text-[#C5A02E] transition-colors">Email</a>
+                      <a href={member.linkedin} target="_blank" rel="noopener" className="hover:text-[#C5A02E] transition-colors">LinkedIn</a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 6. GALLERY TAB */}
+        {currentTab === 'gallery' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+            <div className="space-y-3">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">VISUAL CHRONOLOGY</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Media & Asset Gallery</h2>
+              <p className="max-w-xl text-gray-500 text-sm">
+                Explore our corporate office, boardroom advisory, and on-site technical surveying assets.
+              </p>
+            </div>
+
+            {/* Filter buttons */}
+            <div className="flex flex-wrap gap-2 pb-4 border-b border-gray-200">
+              {['All', 'Office', 'Meetings', 'Projects', 'Corporate Events', 'Site Visits', 'Team Activities'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveGalleryFilter(cat)}
+                  className={`px-3 py-1.5 text-xs font-sans font-medium rounded-none transition-colors cursor-pointer ${
+                    activeGalleryFilter === cat
+                      ? 'bg-[#C5A02E] text-white font-semibold'
+                      : 'bg-[#F4F7F9] text-gray-500 hover:text-[#0A1D37] hover:bg-gray-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Responsive grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredGallery.map((item) => (
+                <div 
+                  key={item.id}
+                  onClick={() => setLightboxItem(item)}
+                  className="group bg-[#F4F7F9]/30 border border-gray-200 rounded-none overflow-hidden shadow-xl cursor-pointer hover:border-gray-300 transition-all"
+                >
+                  <div className="h-64 overflow-hidden relative">
+                    <img 
+                      src={item.image} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A1D37]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                      <p className="text-xs font-semibold text-[#0A1D37] truncate w-full">{item.title}</p>
+                    </div>
+                  </div>
+                  <div className="p-4 flex items-center justify-between">
+                    <span className="text-[10px] text-[#C5A02E] font-sans uppercase tracking-wider">{item.category}</span>
+                    <span className="text-slate-500 text-[10px] uppercase font-sans group-hover:text-[#0A1D37] transition-colors">Expand View →</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Lightbox Modal */}
+            {lightboxItem && (
+              <div 
+                className="fixed inset-0 z-55 bg-white/90 backdrop-blur-sm flex items-center justify-center p-4"
+                onClick={() => setLightboxItem(null)}
+              >
+                <div className="max-w-4xl w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>{lightboxItem.title} - {lightboxItem.category}</span>
+                    <button onClick={() => setLightboxItem(null)} className="text-[#0A1D37] hover:underline uppercase font-sans text-[10px]">Close [X]</button>
+                  </div>
+                  <div className="rounded-none overflow-hidden border border-gray-200 bg-[#F4F7F9] h-[60vh] sm:h-[70vh]">
+                    <img src={lightboxItem.image} alt={lightboxItem.title} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 7. BLOG TAB */}
+        {currentTab === 'blog' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+            <div className="space-y-3">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">INTELLIGENCE DIARY</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Corporate Market Insights</h2>
+              <p className="max-w-xl text-gray-500 text-sm">
+                Macroeconomic parameters, carbon offsets offsets updates, zoning audit compliance, and lease footprint planning guidelines.
+              </p>
+            </div>
+
+            {/* Inject active BlogGrid component */}
+            <BlogGrid blogs={blogs} />
+          </div>
+        )}
+
+        {/* 8. CAREERS TAB */}
+        {currentTab === 'careers' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 animate-in fade-in duration-200">
+            <div className="space-y-3">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">OPPORTUNITIES</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Corporate Vacancies</h2>
+              <p className="max-w-xl text-gray-500 text-sm">
+                Join an elite panel of chartered surveyors, capital analysts, and corporate consultants in San Francisco.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+              {/* Left Opportunities List */}
+              <div className="lg:col-span-7 space-y-6">
+                {careers.length === 0 ? (
+                  <p className="text-xs text-slate-500 font-sans">There are currently no active openings. Check back soon.</p>
+                ) : (
+                  careers.map((job) => (
+                    <div 
+                      key={job.id}
+                      className="bg-[#F4F7F9]/40 border border-gray-200 p-6 rounded-none space-y-4 shadow-xl"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-[#C5A02E] font-sans uppercase tracking-wider">{job.department} • {job.type}</span>
+                          <h4 className="font-serif font-bold text-lg text-[#0A1D37]">{job.title}</h4>
+                          <p className="text-xs text-gray-500 font-sans">{job.location}</p>
+                        </div>
+                        <button 
+                          onClick={() => setApplyingJob(job)}
+                          className="bg-[#C5A02E] hover:bg-[#A68625] text-white font-sans font-bold text-xs tracking-wider px-4 py-2 rounded-none cursor-pointer"
+                        >
+                          APPLY TO POSITION
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 pt-2 text-xs text-gray-500 leading-relaxed border-t border-gray-200">
+                        <p className="font-semibold text-[#0A1D37]">Position Overview:</p>
+                        <p>{job.description}</p>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2 text-xs text-gray-500">
+                        <p className="font-semibold text-[#0A1D37]">Key Requirements:</p>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {job.requirements.map((req, idx) => (
+                            <li key={idx}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Right panel teaser */}
+              <div className="lg:col-span-5 bg-[#F4F7F9]/20 border border-gray-200 p-6 sm:p-8 rounded-none space-y-4">
+                <span className="text-[#C5A02E] font-sans text-[10px] uppercase font-bold tracking-wider block">CORPORATE CULTURE</span>
+                <h4 className="font-serif font-bold text-base text-[#0A1D37]">A Peerless Standard of Intellectual Rigor</h4>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  We seek professionals who value intellectual truth and ethical standards above short-term transactional commissions. All partners must undergo certified background checks and maintain compliance structures.
+                </p>
+                <div className="pt-2 border-t border-gray-200">
+                  <span className="text-[10px] text-slate-500 font-sans uppercase">Core Benefits</span>
+                  <ul className="mt-2 text-xs space-y-1 text-gray-500 font-sans">
+                    <li>• Fee-only fiduciary structure</li>
+                    <li>• Direct partner mentoring programs</li>
+                    <li>• Comprehensive RICS Red Book sponsorship</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Job Application Overlay Form Modal */}
+            {applyingJob && (
+              <div className="fixed inset-0 z-50 overflow-y-auto bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <form onSubmit={handleAppSubmit} className="bg-[#F4F7F9] border border-gray-300 rounded-none max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200">
+                  <div className="flex justify-between items-start pb-3 border-b border-gray-200">
+                    <div>
+                      <span className="text-[9px] text-[#C5A02E] uppercase font-sans tracking-wider">Submit Candidate Dossier</span>
+                      <h4 className="font-serif font-bold text-[#0A1D37] text-lg">{applyingJob.title}</h4>
+                    </div>
+                    <button type="button" onClick={() => setApplyingJob(null)} className="text-gray-500 hover:text-[#0A1D37] p-1 rounded-full cursor-pointer">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {appSuccess ? (
+                    <div className="text-center py-8 space-y-3 animate-in zoom-in-95">
+                      <div className="inline-flex p-3 bg-emerald-500/10 text-emerald-500 rounded-full">
+                        <CheckCircle2 className="h-10 w-10" />
+                      </div>
+                      <p className="font-sans font-bold text-[#0A1D37]">Dossier Transmitted Successfully</p>
+                      <p className="text-gray-500 text-xs">Your academic background and credentials have been filed under confidential administrative audit review.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Full Name */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Full Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={appFormData.fullName}
+                          onChange={(e) => setAppFormData({ ...appFormData, fullName: e.target.value })}
+                          placeholder="Richard Vance"
+                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] placeholder:text-slate-600 focus:outline-none focus:border-[#C5A02E]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Email */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Professional Email</label>
+                          <input
+                            type="email"
+                            required
+                            value={appFormData.email}
+                            onChange={(e) => setAppFormData({ ...appFormData, email: e.target.value })}
+                            placeholder="r.vance@gmail.com"
+                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] placeholder:text-slate-600 focus:outline-none focus:border-[#C5A02E]"
+                          />
+                        </div>
+                        {/* Phone */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Telephone Number</label>
+                          <input
+                            type="tel"
+                            required
+                            value={appFormData.phone}
+                            onChange={(e) => setAppFormData({ ...appFormData, phone: e.target.value })}
+                            placeholder="+1 (555) 000-0000"
+                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] placeholder:text-slate-600 focus:outline-none focus:border-[#C5A02E]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Resume */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Curriculum Vitae / Resume Dossier</label>
+                        <div className="border border-dashed border-gray-300 bg-white p-4 rounded-none text-center space-y-1.5 relative hover:border-[#C5A02E] transition-colors">
+                          <p className="text-xs text-gray-500">
+                            {appFormData.resumeName ? `Dossier selected: ${appFormData.resumeName}` : "Select resume document (.pdf, .docx)"}
+                          </p>
+                          <label className="inline-block bg-[#F4F7F9] hover:bg-gray-200 border border-gray-300 px-3 py-1.5 rounded-none text-[10px] uppercase font-semibold cursor-pointer text-[#0A1D37]">
+                            Browse Files
+                            <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeChange} className="hidden" />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Cover Narrative */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Cover Narrative (Statement of Motivations)</label>
+                        <textarea
+                          rows={3}
+                          value={appFormData.coverLetter}
+                          onChange={(e) => setAppFormData({ ...appFormData, coverLetter: e.target.value })}
+                          placeholder="Briefly describe your transaction background, zoning experience or RICS survey credentials..."
+                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none font-sans"
+                        ></textarea>
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
+                        <button type="button" onClick={() => setApplyingJob(null)} className="bg-white border border-gray-300 text-[#0A1D37] px-4 py-2 rounded-none text-xs cursor-pointer">Cancel</button>
+                        <button type="submit" disabled={appLoading} className="bg-[#C5A02E] hover:bg-[#A68625] disabled:bg-slate-800 text-white font-bold px-4 py-2 rounded-none text-xs cursor-pointer">
+                          {appLoading ? "UPLOADING..." : "TRANSMIT CANDIDATE DOSSIER"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 9. FAQs TAB */}
+        {currentTab === 'faq' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+            <div className="space-y-3 text-center">
+              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">RESOURCES</span>
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Frequently Asked Questions</h2>
+              <p className="max-w-md mx-auto text-gray-500 text-sm">
+                Get instant answers to typical questions regarding RICS compliant valuations, zoning audits, and transaction fiduciaries.
+              </p>
+            </div>
+
+            <div className="divide-y divide-slate-900 border-y border-gray-200">
+              {[
+                { q: 'What services do you provide?', a: 'We provide specialized corporate real estate consultancy, certified RICS-compliant asset valuations, institutional investment underwriting, facility operational advice, local land registry document audits, development feasibility analysis, and zoning legal diagnostics.' },
+                { q: 'How do I book a consultation?', a: 'You can book a direct briefing by clicking "Book Consultation" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.' },
+                { q: 'Do you sell or manage properties?', a: 'No. Richards Realty LLC maintains strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services. This fee-only alignment guards our valuations against commission incentives.' },
+                { q: 'Do you provide certified valuation reports?', a: 'Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors (RICS Red Book standards), recognized by major banking syndicates and courts.' },
+                { q: 'Do you help with land registry audits?', a: 'Yes. Sarah Jenkins, Esq. leads our municipal land audits branch, guiding developers through regional registry diagnostics, easement issues, and boundary validations.' },
+                { q: 'Can businesses and individuals schedule advisory sessions?', a: 'Yes. We represent both family estates and institutional developer syndicates, adapting our cash flow underwriting to the precise wealth scale of our clients.' }
+              ].map((faq, idx) => {
+                const key = `faq-${idx}`;
+                const isOpen = !!faqOpen[key];
+                return (
+                  <div key={idx} className="py-5 space-y-2">
+                    <button 
+                      onClick={() => toggleFaq(key)}
+                      className="w-full flex justify-between items-center text-left text-[#0A1D37] hover:text-[#C5A02E] transition-colors font-sans font-bold text-sm sm:text-base cursor-pointer"
+                    >
+                      <span>{faq.q}</span>
+                      <ChevronDown className={`h-4 w-4 text-[#C5A02E] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isOpen && (
+                      <p className="text-gray-500 text-xs sm:text-sm leading-relaxed pt-1 pl-1 max-w-3xl animate-in fade-in duration-150">
+                        {faq.a}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 10. CONTACT TAB */}
+        {currentTab === 'contact' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-200">
+            {/* Inject ContactForm component */}
+            <ContactForm />
+          </div>
+        )}
+
+        {/* 11. CONSULTATION TAB */}
+        {currentTab === 'consultation' && (
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-200">
+            {/* Inject BookingForm component */}
+            <BookingForm onSuccessClose={() => setTab('home')} />
+          </div>
+        )}
+
+        {/* LEGAL PAGES (Privacy, Terms, Cookies, Disclaimer, Sitemap) */}
+        {currentTab === 'privacy' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+            <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Privacy Policy</h2>
+            <p>At Richards Realty LLC, we respect the absolute privacy of our institutional and private capital clients. All consultation dossiers, municipal documentation, and correspondence transmitted via our contact forms are stored securely within local sandboxed networks.</p>
+            <p>We do not operate tracking cookie pools, nor do we disclose or sell client identities or real estate portfolios to third-party marketplaces or promotional agencies.</p>
+          </div>
+        )}
+
+        {currentTab === 'terms' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+            <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Terms of Service</h2>
+            <p>The materials, briefs, and valuation methodologies presented on this corporate website serve purely as informational guides. Underwriting models, zoning legal advice, and certified surveys require direct contractual agreements under real estate NDAs.</p>
+            <p>By engaging with this website, you acknowledge that Richards Realty LLC does not act as a licensed property listing broker or transactional agency.</p>
+          </div>
+        )}
+
+        {currentTab === 'cookies' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+            <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Cookie Policy</h2>
+            <p>Richards Realty LLC utilizes simple functional session tokens to secure administration dashboard access. We do not engage in tracking pixels, commercial profiling, or third-party advertising cookie networks.</p>
+          </div>
+        )}
+
+        {currentTab === 'disclaimer' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+            <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Disclaimer</h2>
+            <p>Richards Realty LLC operates strictly under California municipal laws. Any content, blog analytical paper, or outline of zoning processes does not represent statutory tax or final legal zoning decisions. Clients are strictly advised to undergo direct custom surveys for certified audits.</p>
+          </div>
+        )}
+
+        {currentTab === 'sitemap' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+            <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Corporate Sitemap</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-4 font-sans">
+              <div className="space-y-2">
+                <p className="font-bold text-[#0A1D37] text-xs uppercase tracking-wider">Main Pages</p>
+                <ul className="space-y-1 text-xs">
+                  <li><button onClick={() => setTab('home')} className="hover:text-[#C5A02E] transition-colors">Home Landing</button></li>
+                  <li><button onClick={() => setTab('about')} className="hover:text-[#C5A02E] transition-colors">About Story</button></li>
+                  <li><button onClick={() => setTab('services')} className="hover:text-[#C5A02E] transition-colors">Advisory domains</button></li>
+                  <li><button onClick={() => setTab('mission')} className="hover:text-[#C5A02E] transition-colors">Mission & Vision</button></li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <p className="font-bold text-[#0A1D37] text-xs uppercase tracking-wider">Resources</p>
+                <ul className="space-y-1 text-xs">
+                  <li><button onClick={() => setTab('team')} className="hover:text-[#C5A02E] transition-colors">Our Team</button></li>
+                  <li><button onClick={() => setTab('gallery')} className="hover:text-[#C5A02E] transition-colors">Media Gallery</button></li>
+                  <li><button onClick={() => setTab('blog')} className="hover:text-[#C5A02E] transition-colors">Market Insights</button></li>
+                  <li><button onClick={() => setTab('faq')} className="hover:text-[#C5A02E] transition-colors">FAQs Directory</button></li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <p className="font-bold text-[#0A1D37] text-xs uppercase tracking-wider">Acquisition</p>
+                <ul className="space-y-1 text-xs">
+                  <li><button onClick={() => setTab('careers')} className="hover:text-[#C5A02E] transition-colors">Careers</button></li>
+                  <li><button onClick={() => setTab('contact')} className="hover:text-[#C5A02E] transition-colors">Contact Corporate</button></li>
+                  <li><button onClick={() => setTab('consultation')} className="hover:text-[#C5A02E] transition-colors">Book Advisory</button></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* Corporate Footer Section */}
+      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} onAdminClick={() => setIsAdminOpen(true)} />
+
+      {/* Floating Back to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={handleScrollToTop}
+          className="fixed bottom-6 left-6 z-40 bg-[#F4F7F9] border border-gray-300 text-[#C5A02E] p-3 rounded-full hover:bg-gray-200 hover:text-[#0A1D37] transition-all shadow-2xl hover:scale-110 active:scale-95 flex items-center justify-center cursor-pointer"
+          title="Back to Top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </button>
+      )}
+
+
+
+      {/* Full Screen Interactive Admin Control Panel Modal */}
+      {isAdminOpen && (
+        <AdminPanel onClose={handleAdminClose} />
+      )}
+
+    </div>
+  );
+}
