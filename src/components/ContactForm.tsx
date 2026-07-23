@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Clock, MessageSquare, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { useToast } from './ui/Toast';
+import { WebsiteSettings } from '../types';
 
-export default function ContactForm() {
+interface ContactFormProps {
+  settings?: WebsiteSettings;
+}
+
+export default function ContactForm({ settings }: ContactFormProps) {
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -24,12 +31,16 @@ export default function ContactForm() {
     setError('');
 
     if (!formData.fullName || !formData.email || !formData.subject || !formData.message || !formData.captcha) {
-      setError('Please populate all required fields.');
+      const msg = 'Please populate all required fields.';
+      setError(msg);
+      toastWarning(msg, 'Incomplete Fields');
       return;
     }
 
     if (parseInt(formData.captcha) !== 12) {
-      setError('Anti-spam validation failed: 8 + 4 does not equal ' + formData.captcha);
+      const msg = 'Anti-spam validation failed: 8 + 4 does not equal ' + formData.captcha;
+      setError(msg);
+      toastError(msg, 'Validation Error');
       return;
     }
 
@@ -44,6 +55,7 @@ export default function ContactForm() {
 
       if (response.ok) {
         setSuccess(true);
+        toastSuccess('Your advisory inquiry has been transmitted securely.', 'Inquiry Sent');
         setFormData({
           fullName: '',
           email: '',
@@ -54,10 +66,14 @@ export default function ContactForm() {
         });
       } else {
         const errData = await response.json();
-        setError(errData.error || 'Failed to submit inquiry.');
+        const msg = errData.error || 'Failed to submit inquiry.';
+        setError(msg);
+        toastError(msg, 'Submission Error');
       }
     } catch (err) {
-      setError('Could not connect to the database. Please try again.');
+      const msg = 'Could not connect to the database. Please try again.';
+      setError(msg);
+      toastError(msg, 'Connection Failure');
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +123,7 @@ export default function ContactForm() {
               <div className="space-y-1">
                 <p className="font-sans font-bold text-sm text-[#0A1D37]">Corporate HQ</p>
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  600 Montgomery St, 41st Floor,<br />
-                  Transamerica Pyramid, San Francisco, CA 94111
+                  {settings?.general?.address || "600 Montgomery St, 41st Floor, Transamerica Pyramid, San Francisco, CA 94111"}
                 </p>
               </div>
             </div>
@@ -120,7 +135,9 @@ export default function ContactForm() {
               </div>
               <div className="space-y-1">
                 <p className="font-sans font-bold text-sm text-[#0A1D37]">Direct Correspondence</p>
-                <p className="text-xs font-sans text-[#0A1D37]">consulting@richardsrealty.com</p>
+                <a href={`mailto:${settings?.general?.email || "consulting@richardsrealty.com"}`} className="text-xs font-sans text-[#0A1D37] hover:underline">
+                  {settings?.general?.email || "consulting@richardsrealty.com"}
+                </a>
                 <p className="text-[10px] text-slate-500">Response standard: within 1 business hour</p>
               </div>
             </div>
@@ -132,7 +149,9 @@ export default function ContactForm() {
               </div>
               <div className="space-y-1">
                 <p className="font-sans font-bold text-sm text-[#0A1D37]">Advisory Line</p>
-                <p className="text-xs font-sans text-[#0A1D37]">+1 (800) 555-0190</p>
+                <a href={`tel:${settings?.general?.phone?.replace(/\s+/g, '') || "+18005550190"}`} className="text-xs font-sans text-[#0A1D37] hover:underline">
+                  {settings?.general?.phone || "+1 (800) 555-0190"}
+                </a>
                 <p className="text-[10px] text-slate-500">Toll-free national consultations</p>
               </div>
             </div>
@@ -144,8 +163,9 @@ export default function ContactForm() {
               </div>
               <div className="space-y-1">
                 <p className="font-sans font-bold text-sm text-[#0A1D37]">Operation Schedule</p>
-                <p className="text-xs text-gray-500">Monday - Friday: 8:00 AM - 6:00 PM (PST)</p>
-                <p className="text-xs text-gray-500">Saturday: Scheduled Bookings Only</p>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  {settings?.general?.workingHours || "Monday - Friday: 8:00 AM - 6:00 PM (PST), Saturday: Scheduled Bookings Only"}
+                </p>
               </div>
             </div>
           </div>

@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Building2, Mail, Phone, MapPin, Clock, Send, CheckCircle2, Linkedin, Twitter, Facebook, Lock } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, Clock, Send, CheckCircle2, Linkedin, Twitter, Facebook, Lock, Instagram } from 'lucide-react';
+import { useToast } from './ui/Toast';
+import { WebsiteSettings } from '../types';
 
 interface FooterProps {
   setTab: (tab: string) => void;
   onBookClick: () => void;
   onAdminClick: () => void;
   googleMapIframe?: string;
+  settings?: WebsiteSettings;
 }
 
-export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIframe }: FooterProps) {
+export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIframe, settings }: FooterProps) {
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +21,9 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
-      setError('Please provide a valid corporate email address.');
+      const msg = 'Please provide a valid corporate email address.';
+      setError(msg);
+      toastWarning(msg, 'Invalid Email');
       return;
     }
     setError('');
@@ -32,13 +38,18 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
 
       if (response.ok) {
         setIsSubscribed(true);
+        toastSuccess('Your email address has been subscribed to our executive dispatch.', 'Subscription Confirmed');
         setEmail('');
       } else {
         const data = await response.json();
-        setError(data.error || 'Subscription failed. Please try again.');
+        const msg = data.error || 'Subscription failed. Please try again.';
+        setError(msg);
+        toastError(msg, 'Subscription Error');
       }
     } catch (err) {
-      setError('Could not establish connection to the server.');
+      const msg = 'Could not establish connection to the server.';
+      setError(msg);
+      toastError(msg, 'Connection Failure');
     } finally {
       setIsLoading(false);
     }
@@ -81,8 +92,8 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
                 <Building2 className="h-5 w-5 text-white" />
               </div>
               <div>
-                <span className="font-sans font-semibold text-base tracking-wider text-white block leading-none">
-                  RICHARDS REALTY
+                <span className="font-sans font-semibold text-base tracking-wider text-white block leading-none uppercase">
+                  {settings?.general?.companyName || "RICHARDS REALTY"}
                 </span>
                 <span className="text-[9px] uppercase font-sans tracking-[0.2em] text-[#C5A02E]">
                   LLC • Consultancy
@@ -90,7 +101,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
               </div>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Richards Realty LLC is a premier corporate advisory and valuation firm. We deliver RICS-compliant valuations, commercial transaction consulting, facility management advice, and zoning-document compliance with strict integrity.
+              {settings?.seo?.metaDescription || "Richards Realty LLC is a premier corporate advisory and valuation firm. We deliver RICS-compliant valuations, commercial transaction consulting, facility management advice, and zoning-document compliance with strict integrity."}
             </p>
             {/* Newsletter */}
             <div className="space-y-3 pt-2">
@@ -180,22 +191,25 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
             <ul className="space-y-3.5 text-xs">
               <li className="flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 text-[#C5A02E] shrink-0 mt-0.5" />
-                <span className="text-gray-400">600 Montgomery St, 41st Floor,<br />San Francisco, CA 94111</span>
+                <span className="text-gray-400">{settings?.general?.address || "600 Montgomery St, 41st Floor, San Francisco, CA 94111"}</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 text-[#C5A02E] shrink-0" />
-                <a href="tel:+18005550190" className="text-gray-400 hover:text-white font-sans">+1 (800) 555-0190</a>
+                <a href={`tel:${settings?.general?.phone?.replace(/\s+/g, '') || "+18005550190"}`} className="text-gray-400 hover:text-white font-sans">
+                  {settings?.general?.phone || "+1 (800) 555-0190"}
+                </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="h-4 w-4 text-[#C5A02E] shrink-0" />
-                <a href="mailto:consulting@richardsrealty.com" className="text-gray-400 hover:text-white font-sans">consulting@richardsrealty.com</a>
+                <a href={`mailto:${settings?.general?.email || "consulting@richardsrealty.com"}`} className="text-gray-400 hover:text-white font-sans">
+                  {settings?.general?.email || "consulting@richardsrealty.com"}
+                </a>
               </li>
               <li className="flex items-start gap-2.5 pt-1.5 border-t border-gray-800">
                 <Clock className="h-4 w-4 text-[#C5A02E] shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-semibold text-white">Office Hours:</p>
-                  <p className="text-gray-400">Mon - Fri: 8:00 AM - 6:00 PM</p>
-                  <p className="text-gray-400">Saturday: By Appointment</p>
+                  <p className="text-gray-400">{settings?.general?.workingHours || "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment"}</p>
                 </div>
               </li>
             </ul>
@@ -231,20 +245,28 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
             <div className="space-y-1">
               <span className="text-xs text-white font-semibold uppercase block">Regulatory Audited Firm</span>
               <p className="text-[11px] text-gray-400 leading-normal">
-                Richards Realty LLC operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.
+                {settings?.content?.footerText || `${settings?.general?.companyName || "Richards Realty LLC"} operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.`}
               </p>
             </div>
             {/* Social Icons */}
             <div className="flex items-center gap-3">
-              <a id="footer-linkedin" href="https://linkedin.com/company/richardsrealty" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="LinkedIn" title="LinkedIn">
+              <a id="footer-linkedin" href={settings?.social?.linkedin || "https://linkedin.com/company/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="LinkedIn" title="LinkedIn">
                 <Linkedin className="h-4 w-4" />
               </a>
-              <a id="footer-twitter" href="https://twitter.com/richardsrealty" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Twitter" title="Twitter">
+              <a id="footer-twitter" href={settings?.social?.twitter || "https://twitter.com/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Twitter" title="Twitter">
                 <Twitter className="h-4 w-4" />
               </a>
-              <a id="footer-facebook" href="https://facebook.com/richardsrealty" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Facebook" title="Facebook">
+              <a id="footer-facebook" href={settings?.social?.facebook || "https://facebook.com/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Facebook" title="Facebook">
                 <Facebook className="h-4 w-4" />
               </a>
+              <a id="footer-instagram" href={settings?.social?.instagram || "https://instagram.com/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Instagram" title="Instagram">
+                <Instagram className="h-4 w-4" />
+              </a>
+              {settings?.general?.whatsappNumber && (
+                <a id="footer-whatsapp" href={`https://wa.me/${settings.general.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="WhatsApp" title="WhatsApp">
+                  <Phone className="h-4 w-4" />
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -253,7 +275,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
       {/* Bottom bar */}
       <div className="bg-white border-t border-gray-200 py-6 text-[11px]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <p>© {new Date().getFullYear()} Richards Realty LLC. All Rights Reserved. Accredited Corporate Real Estate Advisors.</p>
+          <p>© {new Date().getFullYear()} {settings?.general?.companyName || "Richards Realty LLC"}. All Rights Reserved. Accredited Corporate Real Estate Advisors.</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-slate-500">
             <button onClick={() => handleLinkClick('privacy')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Privacy Policy</button>
             <button onClick={() => handleLinkClick('terms')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Terms of Service</button>

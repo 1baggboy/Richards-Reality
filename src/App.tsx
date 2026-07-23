@@ -12,8 +12,10 @@ import ContactForm from './components/ContactForm';
 import BlogGrid from './components/BlogGrid';
 import AdminPanel from './components/AdminPanel';
 import { BlogPost, TeamMember, GalleryItem, JobListing, WebsiteSettings, Testimonial } from './types';
+import { useToast } from './components/ui/Toast';
 
 export default function App() {
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [currentTab, setTab] = useState('home');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -162,7 +164,7 @@ export default function App() {
   const handleAppSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appFormData.fullName || !appFormData.email || !appFormData.phone || !applyingJob) {
-      alert("Please provide all required profile details.");
+      toastWarning("Please provide all required profile details.", "Missing Information");
       return;
     }
     setAppLoading(true);
@@ -176,6 +178,7 @@ export default function App() {
 
       if (response.ok) {
         setAppSuccess(true);
+        toastSuccess("Your job application dossier has been submitted successfully.", "Application Submitted");
         setTimeout(() => {
           setAppSuccess(false);
           setApplyingJob(null);
@@ -183,10 +186,10 @@ export default function App() {
         }, 3000);
       } else {
         const d = await response.json();
-        alert(d.error || "Submission failed.");
+        toastError(d.error || "Submission failed.", "Submission Error");
       }
     } catch (err) {
-      alert("Could not upload dossier to administration portal.");
+      toastError("Could not upload dossier to administration portal.", "Connection Error");
     } finally {
       setAppLoading(false);
     }
@@ -221,7 +224,37 @@ export default function App() {
   const filteredGallery = gallery.filter(item => activeGalleryFilter === 'All' || item.category === activeGalleryFilter);
 
   return (
-    <div className="min-h-screen bg-white text-[#0A1D37] flex flex-col font-sans selection:bg-[#C5A02E] selection:text-white">
+    <div className={`min-h-screen flex flex-col font-sans selection:bg-[#C5A02E] selection:text-white ${settings?.styling?.fontFamily || 'font-sans'}`}>
+      <style>{`
+        :root {
+          --primary: ${settings?.styling?.primaryColor || '#0A1D37'};
+          --accent: ${settings?.styling?.accentColor || '#C5A02E'};
+          --bg: ${settings?.styling?.backgroundColor || '#ffffff'};
+        }
+        .text-\\[\\#0A1D37\\] { color: var(--primary) !important; }
+        .bg-\\[\\#0A1D37\\] { background-color: var(--primary) !important; }
+        .border-\\[\\#0A1D37\\] { border-color: var(--primary) !important; }
+        .fill-\\[\\#0A1D37\\] { fill: var(--primary) !important; }
+        .hover\\:text-\\[\\#0A1D37\\]:hover { color: var(--primary) !important; }
+        .hover\\:bg-\\[\\#0A1D37\\]:hover { background-color: var(--primary) !important; }
+        
+        .text-\\[\\#C5A02E\\] { color: var(--accent) !important; }
+        .bg-\\[\\#C5A02E\\] { background-color: var(--accent) !important; }
+        .border-\\[\\#C5A02E\\] { border-color: var(--accent) !important; }
+        .fill-\\[\\#C5A02E\\] { fill: var(--accent) !important; }
+        .hover\\:text-\\[\\#C5A02E\\]:hover { color: var(--accent) !important; }
+        .hover\\:bg-\\[\\#C5A02E\\]:hover { background-color: var(--accent) !important; }
+        .hover\\:bg-\\[\\#A68625\\]:hover { background-color: color-mix(in srgb, var(--accent) 80%, black) !important; }
+        
+        .bg-white { background-color: var(--bg) !important; }
+        .bg-\\[\\#F4F7F9\\] { background-color: color-mix(in srgb, var(--bg) 95%, var(--primary)) !important; }
+        
+        /* Apply dynamic borders */
+        .rounded-none {
+          border-radius: ${settings?.styling?.borderRadius === 'rounded-sm' ? '0.25rem' : settings?.styling?.borderRadius === 'rounded-md' ? '0.375rem' : settings?.styling?.borderRadius === 'rounded-lg' ? '0.5rem' : settings?.styling?.borderRadius === 'rounded-full' ? '9999px' : '0px'} !important;
+        }
+      `}</style>
+      
       {/* Subtle Progress Bar */}
       {showProgressBar && (
         <div className="fixed top-0 left-0 right-0 h-[3px] bg-[#C5A02E]/20 z-[9999] pointer-events-none">
@@ -233,19 +266,19 @@ export default function App() {
       )}
 
       {/* Sticky Top Header Navigation */}
-      <Header currentTab={currentTab} setTab={setTab} onBookClick={() => setTab('consultation')} />
+      <Header currentTab={currentTab} setTab={setTab} onBookClick={() => setTab('consultation')} settings={settings} />
 
       {/* RENDER PAGES DYNAMICALLY */}
       <main className="flex-grow pt-[72px]">
 
         {/* 1. HOME TAB */}
         {currentTab === 'home' && (
-          <div className="space-y-0 animate-in fade-in duration-300">
+          <div className={`space-y-0 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} duration-300`}>
             {/* Hero Section */}
             <section className="relative h-screen flex items-center justify-center overflow-hidden bg-[#0A1D37]">
               <div className="absolute inset-0 z-0 opacity-40">
                 <img 
-                  src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80" 
+                  src={settings.content?.heroImage || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80"} 
                   alt="City Commercial Skyline" 
                   className="w-full h-full object-cover"
                 />
@@ -254,12 +287,11 @@ export default function App() {
               
               <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
                 <div className="w-12 h-1 bg-[#C5A02E] mx-auto mb-6"></div>
-                <h1 className="font-serif font-extrabold text-4xl sm:text-6xl lg:text-7xl text-white tracking-tight leading-tight">
-                  Your Trusted Partner in<br />
-                  <span className="italic text-[#C5A02E] font-normal">Real Estate Excellence</span>
+                <h1 className="font-serif font-extrabold text-4xl sm:text-6xl lg:text-7xl text-white tracking-tight leading-tight whitespace-pre-line">
+                  {settings.content?.heroHeadline || "Your Trusted Partner in\nReal Estate Excellence"}
                 </h1>
-                <p className="max-w-2xl mx-auto text-gray-300 text-sm sm:text-lg leading-relaxed font-sans font-medium">
-                  Providing professional real estate consultancy, investment advisory, certified valuation audits, legal documentation assistance, and tailored solutions with absolute integrity.
+                <p className="max-w-2xl mx-auto text-gray-300 text-sm sm:text-lg leading-relaxed font-sans font-medium whitespace-pre-line">
+                  {settings.content?.heroSubheadline || "Providing professional real estate consultancy, investment advisory, certified valuation audits, legal documentation assistance, and tailored solutions with absolute integrity."}
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
                   <button 
@@ -294,14 +326,11 @@ export default function App() {
             <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
               <div className="lg:col-span-6 space-y-6">
                 <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">ABOUT RICHARDS REALTY</span>
-                <h2 className="font-serif font-bold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight leading-tight">
-                  Over a Quarter Century of Elite Commercial Real Estate Mastery
+                <h2 className="font-serif font-bold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight leading-tight whitespace-pre-line">
+                  {settings.content?.aboutHeadline || "Over a Quarter Century of Elite Commercial Real Estate Mastery"}
                 </h2>
-                <p className="text-gray-500 text-sm leading-relaxed">
-                  Established in California, Richards Realty LLC is an accredited advisory firm providing commercial zoning, underwriting audits, facility intelligence, and certified valuations. We strictly operate as a premium corporate consultancy.
-                </p>
-                <p className="text-gray-500 text-sm leading-relaxed">
-                  We maintain absolute structural boundaries: we represent enterprise acquisitions under total fiduciary loyalty and never operate commercial marketplace lists or retail portals.
+                <p className="text-gray-500 text-sm leading-relaxed whitespace-pre-line">
+                  {settings.content?.aboutText || "Established in California, Richards Realty LLC is an accredited advisory firm providing commercial zoning, underwriting audits, facility intelligence, and certified valuations. We strictly operate as a premium corporate consultancy.\n\nWe maintain absolute structural boundaries: we represent enterprise acquisitions under total fiduciary loyalty and never operate commercial marketplace lists or retail portals."}
                 </p>
                 <div className="pt-2">
                   <button 
@@ -314,7 +343,7 @@ export default function App() {
               </div>
               <div className="lg:col-span-6 rounded-none overflow-hidden h-[360px] sm:h-[450px] shadow-2xl relative border border-gray-200">
                 <img 
-                  src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" 
+                  src={settings.content?.aboutImage || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"} 
                   alt="Boardroom advisory" 
                   className="w-full h-full object-cover"
                 />
@@ -326,9 +355,9 @@ export default function App() {
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
                 <div className="text-center space-y-3">
                   <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">CORE DOMAINS</span>
-                  <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">Our Advisory Services</h3>
-                  <p className="max-w-xl mx-auto text-gray-500 text-xs sm:text-sm">
-                    Strategic, RICS-compliant, and transactional underwriting solutions built for developers, institutional entities, and private capital.
+                  <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">{settings.content?.servicesHeadline || "Our Advisory Services"}</h3>
+                  <p className="max-w-xl mx-auto text-gray-500 text-xs sm:text-sm whitespace-pre-line">
+                    {settings.content?.servicesSubheadline || "Strategic, RICS-compliant, and transactional underwriting solutions built for developers, institutional entities, and private capital."}
                   </p>
                 </div>
 
@@ -377,7 +406,7 @@ export default function App() {
             <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
               <div className="text-center space-y-3">
                 <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">THE RICHARDS DIFFERENCE</span>
-                <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">Why Choose Richards Realty LLC</h3>
+                <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] tracking-tight">Why Choose {settings.general?.companyName || "Richards Realty LLC"}</h3>
                 <p className="max-w-xl mx-auto text-gray-500 text-xs sm:text-sm">
                   We elevate structural integrity to the center of our advisory business. Discover how we protect your long-term capital assets.
                 </p>
@@ -567,34 +596,33 @@ export default function App() {
 
         {/* 2. ABOUT TAB */}
         {currentTab === 'about' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">CORPORATE PROFILE</span>
-              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">About Richards Realty LLC</h2>
-              <p className="max-w-2xl text-gray-500 text-sm">
-                A premium, client-aligned advisory specializing in commercial zoning audits, municipal registries, facility operations, and RICS Red Book compliant valuations.
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">{settings?.content?.aboutPageHeadline || `About ${settings.general?.companyName || "Richards Realty LLC"}`}</h2>
+              <p className="max-w-2xl text-gray-500 text-sm whitespace-pre-line">
+                {settings?.content?.aboutPageText || "A premium, client-aligned advisory specializing in commercial zoning audits, municipal registries, facility operations, and RICS Red Book compliant valuations."}
               </p>
             </div>
 
             {/* Timelines and grid splits */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               <div className="lg:col-span-6 space-y-6">
-                <h3 className="font-serif font-extrabold text-2xl text-[#0A1D37] tracking-tight">Our Corporate Story</h3>
-                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
-                  Richards Realty LLC was established as an independent alternative to large, transaction-driven real estate brokerages. Seeing a conflict of interest in agencies that represent both buyers and sellers while seeking sales commission incentives, we chose to design a fee-only, fiduciary-aligned corporate consultancy.
-                </p>
-                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
-                  Over the past 25 years, we have structured acquisition reviews, verified environmental compliance criteria, secured zoning approvals, and published certified RICS valuation books for pension schemes, corporate boards, and family offices.
+                <h3 className="font-serif font-extrabold text-2xl text-[#0A1D37] tracking-tight">{settings?.content?.aboutPageStoryHeadline || "Our Corporate Story"}</h3>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed whitespace-pre-line">
+                  {settings?.content?.aboutPageStoryText || `${settings.general?.companyName || "Richards Realty LLC"} was established as an independent alternative to large, transaction-driven real estate brokerages. Seeing a conflict of interest in agencies that represent both buyers and sellers while seeking sales commission incentives, we chose to design a fee-only, fiduciary-aligned corporate consultancy.
+
+Over the past 25 years, we have structured acquisition reviews, verified environmental compliance criteria, secured zoning approvals, and published certified RICS valuation books for pension schemes, corporate boards, and family offices.`}
                 </p>
               </div>
               <div className="lg:col-span-6 space-y-4 bg-[#F4F7F9]/40 p-6 sm:p-8 rounded-none border border-gray-200">
-                <span className="text-[#C5A02E] font-sans text-[10px] uppercase font-bold block tracking-wider">A Message from our CEO</span>
-                <p className="text-[#0A1D37] text-xs italic leading-relaxed">
-                  "At Richards Realty LLC, we believe that real estate excellence is built upon absolute transparency and fiduciary loyalty. We have chosen never to participate in listing markets or transaction brokerages to maintain completely objective advice for our clients. That is our structural ceiling, and it remains our absolute pride."
+                <span className="text-[#C5A02E] font-sans text-[10px] uppercase font-bold block tracking-wider">{settings?.content?.aboutPageMessageHeadline || "A Message from our CEO"}</span>
+                <p className="text-[#0A1D37] text-xs italic leading-relaxed whitespace-pre-line">
+                  "{settings?.content?.aboutPageMessageText || `At ${settings.general?.companyName || "Richards Realty LLC"}, we believe that real estate excellence is built upon absolute transparency and fiduciary loyalty. We have chosen never to participate in listing markets or transaction brokerages to maintain completely objective advice for our clients. That is our structural ceiling, and it remains our absolute pride.`}"
                 </p>
                 <div className="pt-2 border-t border-gray-200">
-                  <p className="text-xs font-bold text-[#0A1D37]">Richard V. Henderson</p>
-                  <p className="text-[10px] text-slate-500 font-sans">Founding Partner & Chief Executive Officer</p>
+                  <p className="text-xs font-bold text-[#0A1D37]">{settings?.content?.aboutPageMessageAuthor?.split(',')[0] || "Richard V. Henderson"}</p>
+                  <p className="text-[10px] text-slate-500 font-sans">{settings?.content?.aboutPageMessageAuthor?.split(',')[1]?.trim() || "Founding Partner & Chief Executive Officer"}</p>
                 </div>
               </div>
             </div>
@@ -623,13 +651,13 @@ export default function App() {
 
         {/* 3. SERVICES TAB */}
         {currentTab === 'services' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-24 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-24 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-100 pb-6">
               <div className="space-y-3">
                 <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">SERVICE BLUEPRINTS</span>
-                <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Our Advisory Services</h2>
-                <p className="max-w-xl text-gray-500 text-xs sm:text-sm">
-                  Each real estate sub-discipline is managed by a certified specialist under strict fiduciary oversight.
+                <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">{settings.content?.servicesHeadline || "Our Advisory Services"}</h2>
+                <p className="max-w-xl text-gray-500 text-xs sm:text-sm whitespace-pre-line">
+                  {settings.content?.servicesSubheadline || "Each real estate sub-discipline is managed by a certified specialist under strict fiduciary oversight."}
                 </p>
               </div>
               <button
@@ -691,12 +719,12 @@ export default function App() {
 
         {/* 4. MISSION & VISION TAB */}
         {currentTab === 'mission' && (
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 animate-in fade-in duration-200">
+          <div className={`max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3 text-center">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">FOUNDING MOTIVATIONS</span>
-              <h2 className="font-serif font-extrabold text-4xl text-[#0A1D37] tracking-tight">Our Mission & Vision</h2>
-              <p className="max-w-lg mx-auto text-gray-500 text-xs sm:text-sm">
-                How Richards Realty LLC builds trust and sets premium standards across California's real estate domains.
+              <h2 className="font-serif font-extrabold text-4xl text-[#0A1D37] tracking-tight">{settings?.content?.missionHeadline || "Our Mission & Vision"}</h2>
+              <p className="max-w-lg mx-auto text-gray-500 text-xs sm:text-sm whitespace-pre-line">
+                {settings?.content?.missionText || `How ${settings.general?.companyName || "Richards Realty LLC"} builds trust and sets premium standards across California's real estate domains.`}
               </p>
             </div>
 
@@ -740,12 +768,12 @@ export default function App() {
 
         {/* 5. TEAM TAB */}
         {currentTab === 'team' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">PARTNERS & ADVISORS</span>
-              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Meet Our Professional Team</h2>
-              <p className="max-w-2xl text-gray-500 text-sm">
-                Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Richards Realty LLC.
+              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">{settings?.content?.teamHeadline || "Meet Our Professional Team"}</h2>
+              <p className="max-w-2xl text-gray-500 text-sm whitespace-pre-line">
+                {settings?.content?.teamSubheadline || `Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of ${settings.general?.companyName || "Richards Realty LLC"}.`}
               </p>
             </div>
 
@@ -774,7 +802,7 @@ export default function App() {
 
         {/* 6. GALLERY TAB */}
         {currentTab === 'gallery' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">VISUAL CHRONOLOGY</span>
               <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Media & Asset Gallery</h2>
@@ -849,7 +877,7 @@ export default function App() {
 
         {/* 7. BLOG TAB */}
         {currentTab === 'blog' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">INTELLIGENCE DIARY</span>
               <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Corporate Market Insights</h2>
@@ -865,7 +893,7 @@ export default function App() {
 
         {/* 8. CAREERS TAB */}
         {currentTab === 'careers' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">OPPORTUNITIES</span>
               <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Corporate Vacancies</h2>
@@ -1041,7 +1069,7 @@ export default function App() {
 
         {/* 9. FAQs TAB */}
         {currentTab === 'faq' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 animate-in fade-in duration-200">
+          <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             <div className="space-y-3 text-center">
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">RESOURCES</span>
               <h2 className="font-serif font-bold text-4xl text-[#0A1D37] tracking-tight">Frequently Asked Questions</h2>
@@ -1051,14 +1079,7 @@ export default function App() {
             </div>
 
             <div className="divide-y divide-slate-900 border-y border-gray-200">
-              {[
-                { q: 'What services do you provide?', a: 'We provide specialized corporate real estate consultancy, certified RICS-compliant asset valuations, institutional investment underwriting, facility operational advice, local land registry document audits, development feasibility analysis, and zoning legal diagnostics.' },
-                { q: 'How do I book a consultation?', a: 'You can book a direct briefing by clicking "Book Consultation" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.' },
-                { q: 'Do you sell or manage properties?', a: 'No. Richards Realty LLC maintains strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services. This fee-only alignment guards our valuations against commission incentives.' },
-                { q: 'Do you provide certified valuation reports?', a: 'Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors (RICS Red Book standards), recognized by major banking syndicates and courts.' },
-                { q: 'Do you help with land registry audits?', a: 'Yes. Sarah Jenkins, Esq. leads our municipal land audits branch, guiding developers through regional registry diagnostics, easement issues, and boundary validations.' },
-                { q: 'Can businesses and individuals schedule advisory sessions?', a: 'Yes. We represent both family estates and institutional developer syndicates, adapting our cash flow underwriting to the precise wealth scale of our clients.' }
-              ].map((faq, idx) => {
+              {(settings?.content?.faqs || []).map((faq, idx) => {
                 const key = `faq-${idx}`;
                 const isOpen = !!faqOpen[key];
                 return (
@@ -1084,53 +1105,55 @@ export default function App() {
 
         {/* 10. CONTACT TAB */}
         {currentTab === 'contact' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-200">
+          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             {/* Inject ContactForm component */}
-            <ContactForm />
+            <ContactForm settings={settings} />
           </div>
         )}
 
         {/* 11. CONSULTATION TAB */}
         {currentTab === 'consultation' && (
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-200">
+          <div className={`max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
             {/* Inject BookingForm component */}
-            <BookingForm onSuccessClose={() => setTab('home')} />
+            <BookingForm onSuccessClose={() => setTab('home')} settings={settings} />
           </div>
         )}
 
         {/* LEGAL PAGES (Privacy, Terms, Cookies, Disclaimer, Sitemap) */}
         {currentTab === 'privacy' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+          <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Privacy Policy</h2>
-            <p>At Richards Realty LLC, we respect the absolute privacy of our institutional and private capital clients. All consultation dossiers, municipal documentation, and correspondence transmitted via our contact forms are stored securely within local sandboxed networks.</p>
-            <p>We do not operate tracking cookie pools, nor do we disclose or sell client identities or real estate portfolios to third-party marketplaces or promotional agencies.</p>
+            <p className="whitespace-pre-line">{settings?.content?.privacyPolicyText || `At ${settings.general?.companyName || "Richards Realty LLC"}, we respect the absolute privacy of our institutional and private capital clients. All consultation dossiers, municipal documentation, and correspondence transmitted via our contact forms are stored securely within local sandboxed networks.
+
+We do not operate tracking cookie pools, nor do we disclose or sell client identities or real estate portfolios to third-party marketplaces or promotional agencies.`}</p>
           </div>
         )}
 
         {currentTab === 'terms' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+          <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Terms of Service</h2>
-            <p>The materials, briefs, and valuation methodologies presented on this corporate website serve purely as informational guides. Underwriting models, zoning legal advice, and certified surveys require direct contractual agreements under real estate NDAs.</p>
-            <p>By engaging with this website, you acknowledge that Richards Realty LLC does not act as a licensed property listing broker or transactional agency.</p>
+            <p className="whitespace-pre-line">{settings?.content?.termsOfServiceText || `The materials, briefs, and valuation methodologies presented on this corporate website serve purely as informational guides. Underwriting models, zoning legal advice, and certified surveys require direct contractual agreements under real estate NDAs.
+
+By engaging with this website, you acknowledge that ${settings.general?.companyName || "Richards Realty LLC"} does not act as a licensed property listing broker or transactional agency.`}</p>
           </div>
         )}
 
         {currentTab === 'cookies' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+          <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Cookie Policy</h2>
-            <p>Richards Realty LLC utilizes simple functional session tokens to secure administration dashboard access. We do not engage in tracking pixels, commercial profiling, or third-party advertising cookie networks.</p>
+            <p className="whitespace-pre-line">{settings?.content?.cookiePolicyText || `${settings.general?.companyName || "Richards Realty LLC"} utilizes simple functional session tokens to secure administration dashboard access. We do not engage in tracking pixels, commercial profiling, or third-party advertising cookie networks.`}</p>
           </div>
         )}
 
         {currentTab === 'disclaimer' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+          <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Disclaimer</h2>
-            <p>Richards Realty LLC operates strictly under California municipal laws. Any content, blog analytical paper, or outline of zoning processes does not represent statutory tax or final legal zoning decisions. Clients are strictly advised to undergo direct custom surveys for certified audits.</p>
+            <p className="whitespace-pre-line">{settings?.content?.disclaimerText || `${settings.general?.companyName || "Richards Realty LLC"} operates strictly under California municipal laws. Any content, blog analytical paper, or outline of zoning processes does not represent statutory tax or final legal zoning decisions. Clients are strictly advised to undergo direct custom surveys for certified audits.`}</p>
           </div>
         )}
 
         {currentTab === 'sitemap' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 animate-in fade-in text-gray-500 text-xs sm:text-sm leading-relaxed">
+          <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Corporate Sitemap</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-4 font-sans">
               <div className="space-y-2">
@@ -1166,7 +1189,7 @@ export default function App() {
       </main>
 
       {/* Corporate Footer Section */}
-      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} onAdminClick={() => setIsAdminOpen(true)} googleMapIframe={settings.general.googleMapIframe} />
+      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} onAdminClick={() => setIsAdminOpen(true)} googleMapIframe={settings.general.googleMapIframe} settings={settings} />
 
       {/* Floating Back to Top Button */}
       {showScrollTop && (

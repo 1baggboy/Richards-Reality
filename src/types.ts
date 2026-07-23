@@ -116,6 +116,59 @@ export interface WebsiteSettings {
     facebook: string;
     instagram: string;
   };
+  content?: {
+    // Home Page
+    heroHeadline?: string;
+    heroSubheadline?: string;
+    heroImage?: string;
+    aboutHeadline?: string;
+    aboutText?: string;
+    aboutImage?: string;
+    servicesHeadline?: string;
+    servicesSubheadline?: string;
+    missionHeadline?: string;
+    missionText?: string;
+    teamHeadline?: string;
+    teamSubheadline?: string;
+    faqs?: { q: string, a: string }[];
+    // Other Pages
+    aboutPageHeadline?: string;
+    aboutPageText?: string;
+    aboutPageStoryHeadline?: string;
+    aboutPageStoryText?: string;
+    aboutPageMessageHeadline?: string;
+    aboutPageMessageText?: string;
+    aboutPageMessageAuthor?: string;
+    missionCoreHeadline?: string;
+    missionCoreText?: string;
+    missionVisionHeadline?: string;
+    missionVisionText?: string;
+    missionApproachHeadline?: string;
+    missionApproachText?: string;
+    missionCommitmentHeadline?: string;
+    missionCommitmentText?: string;
+    galleryHeadline?: string;
+    gallerySubheadline?: string;
+    blogHeadline?: string;
+    blogSubheadline?: string;
+    careersHeadline?: string;
+    careersSubheadline?: string;
+    contactHeadline?: string;
+    contactSubheadline?: string;
+    footerText?: string;
+    privacyPolicyText?: string;
+    termsOfServiceText?: string;
+    cookiePolicyText?: string;
+    disclaimerText?: string;
+  };
+  styling?: {
+    primaryColor?: string;
+    accentColor?: string;
+    backgroundColor?: string;
+    fontFamily?: string;
+    borderRadius?: string;
+    animationStyle?: string;
+  };
 }
 
 export interface SystemLog {

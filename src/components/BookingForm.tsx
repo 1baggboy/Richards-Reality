@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, CheckCircle2, ShieldCheck, Mail, Phone, Building2, User } from 'lucide-react';
+import { useToast } from './ui/Toast';
+import { WebsiteSettings } from '../types';
 
 interface BookingFormProps {
   onSuccessClose?: () => void;
+  settings?: WebsiteSettings;
 }
 
-export default function BookingForm({ onSuccessClose }: BookingFormProps) {
+export default function BookingForm({ onSuccessClose, settings }: BookingFormProps) {
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -48,12 +52,16 @@ export default function BookingForm({ onSuccessClose }: BookingFormProps) {
     setError('');
 
     if (!formData.fullName || !formData.email || !formData.preferredDate || !formData.captcha) {
-      setError('Please fill in all mandatory fields.');
+      const msg = 'Please fill in all mandatory fields.';
+      setError(msg);
+      toastWarning(msg, 'Incomplete Profile');
       return;
     }
 
     if (parseInt(formData.captcha) !== 9) {
-      setError('Anti-spam validation failed: 5 + 4 does not equal ' + formData.captcha);
+      const msg = 'Anti-spam validation failed: 5 + 4 does not equal ' + formData.captcha;
+      setError(msg);
+      toastError(msg, 'Validation Error');
       return;
     }
 
@@ -68,6 +76,7 @@ export default function BookingForm({ onSuccessClose }: BookingFormProps) {
 
       if (response.ok) {
         setSuccess(true);
+        toastSuccess('Your corporate real estate advisory consultation has been scheduled successfully.', 'Consultation Confirmed');
         if (onSuccessClose) {
           setTimeout(() => {
             onSuccessClose();
@@ -75,10 +84,14 @@ export default function BookingForm({ onSuccessClose }: BookingFormProps) {
         }
       } else {
         const errData = await response.json();
-        setError(errData.error || 'Failed to submit booking. Please check credentials.');
+        const msg = errData.error || 'Failed to submit booking. Please check credentials.';
+        setError(msg);
+        toastError(msg, 'Booking Error');
       }
     } catch (err) {
-      setError('Server connection error. Please try again later.');
+      const msg = 'Server connection error. Please try again later.';
+      setError(msg);
+      toastError(msg, 'Connection Failure');
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +105,7 @@ export default function BookingForm({ onSuccessClose }: BookingFormProps) {
         </div>
         <h3 className="font-serif font-bold text-2xl text-[#0A1D37] tracking-tight">Consultation Request Confirmed</h3>
         <p className="text-[#0A1D37] text-sm leading-relaxed">
-          Thank you for choosing <span className="font-semibold text-[#0A1D37]">Richards Realty LLC</span>. A senior corporate real estate officer will review your dossier and contact your office within <span className="font-semibold text-[#0A1D37]">1 business hour</span>.
+          Thank you for choosing <span className="font-semibold text-[#0A1D37]">{settings?.general?.companyName || "Richards Realty LLC"}</span>. A senior corporate real estate officer will review your dossier and contact your office within <span className="font-semibold text-[#0A1D37]">1 business hour</span>.
         </p>
         <div className="bg-white p-4 rounded-none border border-gray-300 text-left text-xs space-y-2 font-sans">
           <p className="text-slate-500"><span className="text-[#0A1D37] font-semibold">Service:</span> {formData.serviceNeeded}</p>

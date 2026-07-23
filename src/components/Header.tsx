@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Menu, X, Building2, Phone } from 'lucide-react';
+import { WebsiteSettings } from '../types';
 
 interface HeaderProps {
   currentTab: string;
   setTab: (tab: string) => void;
   onBookClick: () => void;
+  settings?: WebsiteSettings;
 }
 
-export default function Header({ currentTab, setTab, onBookClick }: HeaderProps) {
+export default function Header({ currentTab, setTab, onBookClick, settings }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -65,7 +67,7 @@ export default function Header({ currentTab, setTab, onBookClick }: HeaderProps)
             </div>
             <div className="flex flex-col">
               <span className="font-serif text-xl font-bold tracking-tight uppercase text-[#0A1D37]">
-                Richards Realty
+                {settings?.general?.companyName || "Richards Realty"}
               </span>
               <span className="text-[9px] uppercase tracking-[0.3em] text-[#C5A02E] font-semibold">
                 Consultancy & Excellence
@@ -130,11 +132,11 @@ export default function Header({ currentTab, setTab, onBookClick }: HeaderProps)
             ))}
             <div className="pt-4 px-4 flex flex-col gap-3">
               <a
-                href="tel:+18005550190"
+                href={`tel:${settings?.general?.phone?.replace(/\s+/g, '') || "+18005550190"}`}
                 className="flex items-center justify-center gap-2 text-sm text-[#0A1D37] py-2 border border-gray-300 rounded-none font-sans"
               >
                 <Phone className="h-4 w-4 text-[#C5A02E]" />
-                +1 (800) 555-0190
+                {settings?.general?.phone || "+1 (800) 555-0190"}
               </a>
               <button
                 onClick={() => {
