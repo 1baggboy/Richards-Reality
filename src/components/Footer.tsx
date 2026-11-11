@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Mail, Phone, MapPin, Clock, Send, CheckCircle2, Linkedin, Twitter, Facebook, Lock, Instagram } from 'lucide-react';
 import { useToast } from './ui/Toast';
 import { WebsiteSettings } from '../types';
+import { logAnalyticsEvent } from '../lib/analytics';
+import FooterGoogleMap from './FooterGoogleMap';
 
 interface FooterProps {
   setTab: (tab: string) => void;
@@ -17,6 +19,25 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const newsletterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          logAnalyticsEvent('impression');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (newsletterRef.current) {
+      observer.observe(newsletterRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +59,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
 
       if (response.ok) {
         setIsSubscribed(true);
+        logAnalyticsEvent('signup');
         toastSuccess('Your email address has been subscribed to our executive dispatch.', 'Subscription Confirmed');
         setEmail('');
       } else {
@@ -66,11 +88,12 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
 
   const quickLinks = [
     { name: 'About Company', tab: 'about' },
+    { name: 'Apply Now', tab: 'apply' },
+    { name: 'Track Application', tab: 'track' },
     { name: 'Mission & Vision', tab: 'mission' },
     { name: 'Our Elite Team', tab: 'team' },
     { name: 'Media Gallery', tab: 'gallery' },
     { name: 'Corporate Blog', tab: 'blog' },
-    { name: 'Career Vacancies', tab: 'careers' },
     { name: 'Frequently Asked Questions', tab: 'faq' },
     { name: 'Contact Corporate', tab: 'contact' },
   ];
@@ -82,6 +105,55 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
 
   return (
     <footer className="bg-[#0A1D37] text-gray-300 font-sans border-t border-gray-800">
+      {/* Newsletter Header Section */}
+      <div ref={newsletterRef} className="bg-[#F4F7F9]/5 border-b border-gray-800/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+            <div className="max-w-2xl text-center lg:text-left space-y-2">
+              <h3 className="font-serif font-bold text-xl text-white uppercase tracking-tight">Market Insights & Advisory Dispatch</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Join our exclusive network of institutional investors and corporate real estate professionals. Receive monthly macroeconomic modeling, zoning audits, and premium market analysis.
+              </p>
+            </div>
+            <div className="w-full lg:w-auto min-w-[320px] sm:min-w-[400px]">
+              {isSubscribed ? (
+                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-none text-emerald-400 text-xs animate-in zoom-in-95 duration-200">
+                  <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  <span className="font-bold">Subscription Confirmed! Welcome to our advisory network.</span>
+                </div>
+              ) : (
+                <form onSubmit={handleSubscribe} className="space-y-2">
+                  <div className="flex bg-white rounded-none border border-gray-300 focus-within:border-[#C5A02E] transition-all shadow-xl">
+                    <div className="flex items-center pl-4 text-gray-400">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="Enter corporate email address..."
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                      className="bg-transparent px-3 py-3.5 text-xs text-[#0A1D37] focus:outline-none w-full font-sans placeholder:text-slate-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="bg-[#C5A02E] hover:bg-[#A68625] disabled:bg-slate-800 text-white px-8 font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      {isLoading ? 'Processing...' : 'Subscribe'}
+                    </button>
+                  </div>
+                  {error && <p className="text-[10px] text-rose-500 font-sans pl-1">{error}</p>}
+                  <p className="text-[9px] text-gray-500 italic px-1">
+                    By subscribing, you agree to our privacy policy and data governance standards.
+                  </p>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Top Footer Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
@@ -103,40 +175,6 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
             <p className="text-xs text-gray-400 leading-relaxed">
               {settings?.seo?.metaDescription || "Richards Realty LLC is a premier corporate advisory and valuation firm. We deliver RICS-compliant valuations, commercial transaction consulting, facility management advice, and zoning-document compliance with strict integrity."}
             </p>
-            {/* Newsletter */}
-            <div className="space-y-3 pt-2">
-              <span className="text-xs text-white uppercase font-semibold tracking-wider block">
-                Corporate Insights
-              </span>
-              {isSubscribed ? (
-                <div className="flex items-center gap-2 bg-white border border-gray-300 p-3 rounded-none text-[#C5A02E] text-xs">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>Subscribed! Welcome to our advisory network.</span>
-                </div>
-              ) : (
-                <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
-                  <div className="flex bg-white rounded-none border border-gray-300 focus-within:border-[#C5A02E] transition-colors">
-                    <input
-                      type="email"
-                      placeholder="business@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isLoading}
-                      className="bg-transparent px-3 py-2 text-xs text-[#0A1D37] focus:outline-none w-full font-sans placeholder:text-slate-600"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="bg-[#C5A02E] hover:bg-[#A68625] disabled:bg-slate-800 text-white px-3.5 transition-all flex items-center justify-center cursor-pointer"
-                      aria-label="Subscribe"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  {error && <p className="text-[10px] text-rose-500 font-sans">{error}</p>}
-                </form>
-              )}
-            </div>
           </div>
 
           {/* Quick Links */}
@@ -218,28 +256,12 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
 
         {/* Google Map & Footnote Map Split */}
         <div className="mt-12 pt-12 border-t border-gray-800 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 rounded-none overflow-hidden h-[180px] bg-white border border-gray-300">
-            <iframe
-              src={(() => {
-                if (!googleMapIframe) {
-                  return "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus";
-                }
-                if (googleMapIframe.includes('<iframe')) {
-                  const match = googleMapIframe.match(/src="([^"]+)"/);
-                  if (match && match[1]) {
-                    return match[1];
-                  }
-                }
-                return googleMapIframe;
-              })()}
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen={false}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="Richards Realty HQ Location"
-            ></iframe>
+          <div className="lg:col-span-2 rounded-none overflow-hidden h-[220px] bg-slate-900 border border-slate-700 shadow-xl">
+            <FooterGoogleMap 
+              address={settings?.general?.address} 
+              companyName={settings?.general?.companyName}
+              phone={settings?.general?.phone}
+            />
           </div>
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-1">

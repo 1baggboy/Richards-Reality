@@ -135,23 +135,67 @@
   }
 }
 
+/* Screen Only Rules */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+/* Enhanced Print Stylesheet */
 @media print {
+  @page {
+    margin: 1.2cm 1cm;
+    size: portrait;
+  }
+
+  /* Force background colors, sharp text, and prevent animated freeze states */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Ensure multi-page document pagination does not get clipped */
+  body, html, #root, div, section, article, main {
+    overflow: visible !important;
+  }
+
+  /* Display print-only elements */
+  .print-only, .print-header, .print-footer {
+    display: block !important;
+  }
+
   /* Hide interactive, non-essential elements */
-  header, footer, nav, button, .no-print, [role="button"], iframe, .scroll-to-top, .admin-panel, .whatsapp-button {
+  header:not(.print-header), 
+  footer:not(.print-footer), 
+  nav, 
+  button, 
+  .no-print, 
+  [role="button"], 
+  iframe, 
+  .scroll-to-top, 
+  .whatsapp-button,
+  #toast-portal,
+  form input[type="text"],
+  form input[type="search"],
+  form button {
     display: none !important;
   }
 
   /* Make containers full width, remove margins/paddings and box-shadows */
   body, html, #root {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
     width: 100% !important;
     height: auto !important;
-    overflow: visible !important;
-    font-size: 11pt !important;
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
   }
 
-  .max-w-7xl, .max-w-4xl, .container, .mx-auto {
+  .max-w-7xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .container, .mx-auto {
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
@@ -160,14 +204,37 @@
     border: none !important;
   }
 
+  /* Structured Print Header */
+  .print-header {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 16px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 2.5px solid #C5A02E !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Structured Print Footer */
+  .print-footer {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 24px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #cbd5e1 !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
+    font-size: 8pt !important;
+  }
+
   /* Layout and structure styling */
   section, article, .print-card {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: none !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    margin-bottom: 24px !important;
-    padding-bottom: 24px !important;
+    border: 1px solid #e2e8f0 !important;
+    margin-bottom: 16px !important;
+    padding: 12px !important;
+    background: #ffffff !important;
   }
 
   /* Headings & Typography */
@@ -180,52 +247,46 @@
   }
 
   p, li, span {
-    color: #334155 !important;
-    line-height: 1.6 !important;
+    color: #1e293b !important;
   }
 
-  /* Print header accent */
-  body::before {
-    content: "RICHARDS REALTY LLC • EXECUTIVE ADVISORY BRIEF & PORTFOLIO";
-    display: block;
-    text-align: center;
-    font-size: 8pt;
-    font-family: 'Inter', sans-serif;
-    letter-spacing: 0.15em;
-    color: #C5A02E;
-    border-bottom: 2px solid #C5A02E;
-    padding-bottom: 8px;
-    margin-bottom: 30px;
+  /* Ensure card backgrounds remain light and legible */
+  .bg-slate-50, .bg-slate-100, .bg-gray-50, .dark\:bg-slate-900, .dark\:bg-slate-800 {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
   }
 
-  /* Special rule when printing modal-open blog details */
-  body.modal-open #root {
-    display: none !important;
+  .text-white {
+    color: #0f172a !important;
   }
 
-  body.modal-open .fixed.inset-0 {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
+  /* In dark mode, ensure print outputs light page with dark ink */
+  .dark {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Clean Modal Print Handling */
+  .fixed.inset-0 {
+    position: static !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
     width: 100% !important;
     height: auto !important;
-    background: #ffffff !important;
-    z-index: 99999 !important;
     display: block !important;
-    overflow: visible !important;
   }
 
-  body.modal-open .fixed.inset-0 .max-w-4xl {
+  .fixed.inset-0 .max-w-4xl,
+  .fixed.inset-0 .max-w-3xl,
+  .fixed.inset-0 .max-w-2xl {
     max-height: none !important;
-    overflow: visible !important;
     box-shadow: none !important;
     border: none !important;
     width: 100% !important;
     padding: 0 !important;
-  }
-
-  @page {
-    margin: 1.5cm;
-    size: portrait;
   }
 }

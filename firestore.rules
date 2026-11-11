@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /test/connection {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Global helpers
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'lookuptoadams@gmail.com' || // Bootstrapped admin
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 2. Entity validation
+    function isValidSupportThread(data) {
+      return data.visitorName is string && data.visitorName.size() >= 2 && data.visitorName.size() <= 100
+          && data.visitorEmail is string && data.visitorEmail.size() <= 100
+          && data.status in ['open', 'active', 'resolved']
+          && (data.lastMessageText == null || (data.lastMessageText is string && data.lastMessageText.size() <= 1000));
+    }
+
+    function isValidSupportMessage(data) {
+      return data.text is string && data.text.size() >= 1 && data.text.size() <= 2000
+          && data.sender in ['visitor', 'admin'];
+    }
+
+    function isValidAnalyticsEvent(data) {
+      return data.type in ['impression', 'signup'];
+    }
+
+    // 3. Collection rules
+    match /config/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /team/{teamId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /gallery/{galleryId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /testimonials/{testId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /careers/{careerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /applications/{appId} {
+      allow create, read, write: if true;
+    }
+
+    match /consultations/{consultationId} {
+      allow create, read, write: if true;
+    }
+
+    match /drafts/{draftId} {
+      allow create, read, write: if true;
+    }
+
+    match /users/{userId} {
+      allow create, read, write: if true;
+    }
+
+    match /communications/{commId} {
+      allow create, read, write: if true;
+    }
+
+    match /followups/{taskId} {
+      allow create, read, write: if true;
+    }
+
+    match /notifications/{notifId} {
+      allow create, read, write: if true;
+    }
+
+    match /userActivities/{actId} {
+      allow create, read, write: if true;
+    }
+
+    match /messages/{messageId} {
+      allow create, read, write: if true;
+    }
+
+    match /subscribers/{subId} {
+      allow create, read, write: if true;
+    }
+
+    match /logs/{logId} {
+      allow create, read, write: if true;
+    }
+
+    match /supportThreads/{threadId} {
+      allow get: if true; 
+      allow create: if isValidSupportThread(request.resource.data);
+      allow update: if true;
+      allow list, read: if true;
+
+      match /messages/{messageId} {
+        allow read: if true; 
+        allow create: if isValidSupportMessage(request.resource.data);
+      }
+    }
+
+    match /analyticsEvents/{eventId} {
+      allow create, read, write: if true;
+    }
+
+    match /valuationReports/{reportId} {
+      allow create, read, write: if true;
+    }
+
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+  }
+}

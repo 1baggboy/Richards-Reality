@@ -15,7 +15,15 @@ import {
   JobApplication, 
   NewsletterSubscriber, 
   WebsiteSettings,
-  SystemLog 
+  SystemLog,
+  ConsultationDraft,
+  UserProfile,
+  CommunicationRecord,
+  FollowUpTask,
+  AdminNotification,
+  UserActivityLog,
+  ConsultationStatus,
+  LeadStatus
 } from './src/types.js';
 
 const app = express();
@@ -60,10 +68,12 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
     teamHeadline: "Meet Our Professional Team",
     teamSubheadline: "Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Richards Realty LLC.",
     faqs: [
-      { q: 'What services do you provide?', a: 'We provide specialized corporate real estate consultancy, certified RICS-compliant asset valuations, institutional investment underwriting, facility operational advice, local land registry document audits, development feasibility analysis, and zoning legal diagnostics.' },
-      { q: 'How do I book a consultation?', a: 'You can book a direct briefing by clicking "Book Consultation" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.' },
-      { q: 'Do you sell or manage properties?', a: 'No. We maintain strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services.' },
-      { q: 'Do you provide certified valuation reports?', a: 'Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors.' }
+      { q: 'What services do you provide?', a: 'We provide specialized corporate real estate consultancy, certified RICS-compliant asset valuations, institutional investment underwriting, facility operational advice, local land registry document audits, development feasibility analysis, and zoning legal diagnostics.', category: 'Corporate' },
+      { q: 'How do I book a consultation?', a: 'You can book a direct briefing by clicking "Book Consultation" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.', category: 'Corporate' },
+      { q: 'Do you sell or manage properties?', a: 'No. We maintain strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services.', category: 'Corporate' },
+      { q: 'Do you provide certified valuation reports?', a: 'Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors.', category: 'Valuations' },
+      { q: 'What zoning and regulatory standards do you adhere to?', a: 'Our advisory operates in strict compliance with California municipal real estate codes, zoning ordinances, and eminent domain guidelines.', category: 'Legal' },
+      { q: 'Are your valuation reports accepted by banking syndicates?', a: 'Yes. All our commercial valuation books are RICS Red Book compliant and fully accepted by major financial institutions for asset financing and audit verification.', category: 'Valuations' }
     ],
     aboutPageHeadline: "Corporate Profile",
     aboutPageText: "Richards Realty LLC is a premier corporate advisory and valuation firm headquartered in San Francisco. We specialize in RICS-compliant valuations, commercial transaction consulting, and strategic facility management.",
@@ -275,8 +285,78 @@ let DB = {
   messages: [] as ContactMessage[],
   applications: [] as JobApplication[],
   subscribers: [] as NewsletterSubscriber[],
-  logs: [] as SystemLog[]
+  logs: [] as SystemLog[],
+  drafts: [] as ConsultationDraft[],
+  users: [] as UserProfile[],
+  communications: [] as CommunicationRecord[],
+  followups: [] as FollowUpTask[],
+  notifications: [] as AdminNotification[],
+  userActivities: [] as UserActivityLog[]
 };
+
+// Helper CRM Functions
+function ensureUserProfile(email: string, fullName?: string, phone?: string, company?: string): UserProfile {
+  const cleanEmail = email.trim().toLowerCase();
+  let user = DB.users.find(u => u.email.toLowerCase() === cleanEmail);
+  const now = new Date().toISOString();
+
+  if (!user) {
+    user = {
+      id: `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      fullName: fullName || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      phone: phone || "",
+      company: company || "",
+      leadStatus: 'New Lead',
+      tags: ['Consultation Client'],
+      assignedAdmin: 'Arthur Richards (Managing Partner)',
+      registrationDate: now,
+      lastActive: now,
+      notes: ""
+    };
+    DB.users.unshift(user);
+    firestoreAddOrUpdateRecord('users', user);
+    pushAdminNotification('new_user', 'New Client Profile Created', `Created client record for ${user.fullName} (${user.email}).`, user.id);
+  } else {
+    if (fullName && (!user.fullName || user.fullName === cleanEmail.split('@')[0])) user.fullName = fullName;
+    if (phone && !user.phone) user.phone = phone;
+    if (company && !user.company) user.company = company;
+    user.lastActive = now;
+    firestoreAddOrUpdateRecord('users', user);
+  }
+  return user;
+}
+
+function logUserActivity(userEmail: string, userName: string, action: string, details: string) {
+  const act: UserActivityLog = {
+    id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userEmail: userEmail.toLowerCase(),
+    userName: userName || userEmail,
+    action,
+    details,
+    timestamp: new Date().toISOString()
+  };
+  DB.userActivities.unshift(act);
+  if (DB.userActivities.length > 300) DB.userActivities = DB.userActivities.slice(0, 300);
+  saveDatabase();
+  firestoreAddOrUpdateRecord('userActivities', act);
+}
+
+function pushAdminNotification(type: AdminNotification['type'], title: string, message: string, referenceId?: string) {
+  const notif: AdminNotification = {
+    id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    type,
+    title,
+    message,
+    referenceId,
+    read: false,
+    timestamp: new Date().toISOString()
+  };
+  DB.notifications.unshift(notif);
+  if (DB.notifications.length > 100) DB.notifications = DB.notifications.slice(0, 100);
+  saveDatabase();
+  firestoreAddOrUpdateRecord('notifications', notif);
+}
 
 // --- FIRESTORE INTEGRATION SETUP ---
 let firestoreDb: any = null;
@@ -374,7 +454,13 @@ async function syncFromFirestore() {
       { key: 'messages', coll: 'messages' },
       { key: 'applications', coll: 'applications' },
       { key: 'subscribers', coll: 'subscribers' },
-      { key: 'logs', coll: 'logs' }
+      { key: 'logs', coll: 'logs' },
+      { key: 'drafts', coll: 'drafts' },
+      { key: 'users', coll: 'users' },
+      { key: 'communications', coll: 'communications' },
+      { key: 'followups', coll: 'followups' },
+      { key: 'notifications', coll: 'notifications' },
+      { key: 'userActivities', coll: 'userActivities' }
     ];
 
     for (const item of keys) {
@@ -544,10 +630,65 @@ app.get('/api/consultations', checkAdminAuth, (req, res) => {
   res.json(DB.consultations);
 });
 
+// Consultation Draft Tracking (Public Draft Update)
+app.post('/api/consultations/draft', (req, res) => {
+  const { fullName, email, phone, company, serviceNeeded, preferredDate, preferredTime, message } = req.body;
+  if (!email && !fullName) return res.json({ success: false });
+
+  const cleanEmail = (email || `draft-${Date.now()}@temp.com`).toLowerCase();
+  ensureUserProfile(cleanEmail, fullName, phone, company);
+
+  let draftIndex = DB.drafts.findIndex(d => d.email === cleanEmail);
+  const now = new Date().toISOString();
+
+  // Count fields filled out
+  let completedFields = 0;
+  if (fullName) completedFields++;
+  if (email) completedFields++;
+  if (phone) completedFields++;
+  if (company) completedFields++;
+  if (serviceNeeded) completedFields++;
+  if (preferredDate) completedFields++;
+  if (preferredTime) completedFields++;
+  if (message) completedFields++;
+
+  const draftData: ConsultationDraft = {
+    id: draftIndex !== -1 ? DB.drafts[draftIndex].id : `draft-${Date.now()}`,
+    fullName: fullName || "Anonymous Visitor",
+    email: cleanEmail,
+    phone: phone || "",
+    company: company || "",
+    serviceNeeded: serviceNeeded || "Real Estate Consultancy",
+    preferredDate: preferredDate || "",
+    preferredTime: preferredTime || "morning",
+    message: message || "",
+    currentStep: completedFields > 4 ? 2 : 1,
+    totalSteps: 2,
+    completedFieldsCount: completedFields,
+    status: 'in_progress',
+    lastTouchedAt: now
+  };
+
+  if (draftIndex !== -1) {
+    DB.drafts[draftIndex] = draftData;
+  } else {
+    DB.drafts.unshift(draftData);
+    pushAdminNotification('form_draft', 'Incomplete Consultation Draft', `${draftData.fullName} started filling out a ${draftData.serviceNeeded} consultation form.`, draftData.id);
+  }
+
+  logUserActivity(cleanEmail, draftData.fullName, "Form Draft Saved", `Completed ${completedFields}/8 fields for ${serviceNeeded}.`);
+  saveDatabase();
+  firestoreAddOrUpdateRecord('drafts', draftData);
+  res.json({ success: true, draft: draftData });
+});
+
+app.get('/api/consultations/drafts', checkAdminAuth, (req, res) => {
+  res.json(DB.drafts);
+});
+
 app.post('/api/consultations', (req, res) => {
-  const { fullName, phone, email, company, serviceNeeded, preferredDate, preferredTime, message, captcha } = req.body;
+  const { fullName, phone, email, company, serviceNeeded, preferredDate, preferredTime, message, captcha, consultationMethod, refNumber } = req.body;
   
-  // Basic captcha verification check (simple sum checking)
   if (!captcha || parseInt(captcha) !== 9) {
     return res.status(400).json({ error: "Spam protection validation failed. (5 + 4 does not equal your answer)" });
   }
@@ -556,8 +697,11 @@ app.post('/api/consultations', (req, res) => {
     return res.status(400).json({ error: "Required fields are missing from consultation request." });
   }
 
+  const generatedRef = refNumber || `RR-APP-${Math.floor(100000 + Math.random() * 900000)}`;
+
   const newRequest: ConsultationRequest = {
     id: `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    refNumber: generatedRef,
     fullName,
     phone: phone || "",
     email,
@@ -567,31 +711,174 @@ app.post('/api/consultations', (req, res) => {
     preferredTime: preferredTime || "",
     message: message || "",
     status: 'pending',
+    consultationMethod: consultationMethod || 'virtual',
+    assignedTo: 'Arthur Richards (Managing Partner)',
     createdAt: new Date().toISOString()
   };
 
   DB.consultations.unshift(newRequest);
+
+  // Mark draft as submitted if existed
+  const draftIdx = DB.drafts.findIndex(d => d.email.toLowerCase() === email.toLowerCase());
+  if (draftIdx !== -1) {
+    DB.drafts[draftIdx].status = 'submitted';
+    firestoreAddOrUpdateRecord('drafts', DB.drafts[draftIdx]);
+  }
+
+  // Ensure CRM Profile exists
+  const user = ensureUserProfile(email, fullName, phone, company);
+  user.leadStatus = 'Consultation Scheduled';
+  user.lastActive = new Date().toISOString();
+
+  logUserActivity(email, fullName, "Submitted Consultation Brief", `Scheduled ${serviceNeeded} briefing for ${preferredDate} (${preferredTime}). Reference ID: ${generatedRef}`);
+  pushAdminNotification('consultation_booking', 'New Consultation Booking', `${fullName} submitted a briefing request for ${serviceNeeded}. Ref: ${generatedRef}`, newRequest.id);
+
   saveDatabase();
   firestoreAddOrUpdateRecord('consultations', newRequest);
-  writeLog("Consultation Booked", `New consultation scheduled by ${fullName} (${company || "Individual"}) regarding ${serviceNeeded}.`);
-  
-  // Note: Administrator email is mocked as sent in log
-  console.log(`[EMAIL NOTIFICATION SENT TO ADMIN] New consultation booking request from ${fullName} for ${serviceNeeded}.`);
+  writeLog("Consultation Booked", `New consultation scheduled by ${fullName} (${company || "Individual"}) regarding ${serviceNeeded}. Ref: ${generatedRef}`);
   
   res.status(201).json({ success: true, request: newRequest });
 });
 
+// 3.1 Public Application Status Tracking Endpoint
+app.get('/api/applications/status', (req, res) => {
+  const query = ((req.query.id || req.query.query || '') as string).trim();
+  if (!query) {
+    return res.status(400).json({ error: "Please enter a valid Submission Reference ID or email address." });
+  }
+
+  const clean = query.toLowerCase();
+
+  // Match in consultations (includes housing applications)
+  const matchedConsultations = DB.consultations.filter(c => {
+    const idMatch = c.id.toLowerCase() === clean || c.id.toLowerCase().includes(clean);
+    const refMatch = c.refNumber ? (c.refNumber.toLowerCase() === clean || c.refNumber.toLowerCase().includes(clean)) : false;
+    const emailMatch = c.email.toLowerCase() === clean;
+    return idMatch || refMatch || emailMatch;
+  });
+
+  // Match in career applications
+  const matchedJobApps = DB.applications.filter(a => {
+    const idMatch = a.id.toLowerCase() === clean || a.id.toLowerCase().includes(clean);
+    const emailMatch = a.email.toLowerCase() === clean;
+    return idMatch || emailMatch;
+  });
+
+  if (matchedConsultations.length === 0 && matchedJobApps.length === 0) {
+    return res.status(404).json({ error: `No application application found matching "${query}". Please check your Submission ID or try searching with your email address.` });
+  }
+
+  const results = [
+    ...matchedConsultations.map(c => {
+      let statusStep = 1;
+      let statusLabel = 'Application Received & Pending Verification';
+      let statusBadge: 'received' | 'in_review' | 'approved' | 'rejected' = 'received';
+
+      if (c.status === 'pending') {
+        statusStep = 1;
+        statusLabel = 'Application Ingested & Awaiting Initial Audit';
+        statusBadge = 'received';
+      } else if (c.status === 'in_progress') {
+        statusStep = 2;
+        statusLabel = 'Document & Income Verification Underway';
+        statusBadge = 'in_review';
+      } else if (c.status === 'rescheduled') {
+        statusStep = 3;
+        statusLabel = 'Executive Advisory Review & Landlord Reference Check';
+        statusBadge = 'in_review';
+      } else if (c.status === 'approved' || c.status === 'completed') {
+        statusStep = 4;
+        statusLabel = 'Application Approved – Final Lease Contract Ready';
+        statusBadge = 'approved';
+      } else if (c.status === 'rejected' || c.status === 'cancelled') {
+        statusStep = 4;
+        statusLabel = 'Application Processed – Lease Request Declined';
+        statusBadge = 'rejected';
+      }
+
+      let propName = 'Residential Unit';
+      if (c.company && c.company.includes('Rental Applicant')) {
+        const extracted = c.company.replace('Rental Applicant (', '').replace(')', '').trim();
+        if (extracted) propName = extracted;
+      }
+
+      return {
+        id: c.id,
+        refNumber: c.refNumber || c.id,
+        applicantName: c.fullName,
+        email: c.email,
+        phone: c.phone,
+        serviceNeeded: c.serviceNeeded,
+        property: propName,
+        preferredDate: c.preferredDate,
+        submittedAt: c.createdAt,
+        updatedAt: c.updatedAt || c.createdAt,
+        status: c.status,
+        statusStep,
+        statusLabel,
+        statusBadge,
+        assignedTo: c.assignedTo || 'Arthur Richards (Managing Partner)',
+        internalNotes: c.internalNotes || 'Your application is progressing through our compliance pipeline. Paystubs and ID verification complete.',
+        type: 'rental'
+      };
+    }),
+    ...matchedJobApps.map(a => ({
+      id: a.id,
+      refNumber: a.id,
+      applicantName: a.fullName,
+      email: a.email,
+      phone: a.phone,
+      serviceNeeded: `Career Application (${a.jobTitle})`,
+      property: a.jobTitle,
+      preferredDate: a.createdAt,
+      submittedAt: a.createdAt,
+      updatedAt: a.createdAt,
+      status: a.status || 'pending',
+      statusStep: a.status === 'hired' ? 4 : (a.status === 'interview' ? 3 : 2),
+      statusLabel: a.status === 'hired' ? 'Career Offer Extended' : (a.status === 'interview' ? 'Interview Scheduled' : 'Resume & Portfolio Under Review'),
+      statusBadge: a.status === 'hired' ? 'approved' : ('in_review' as any),
+      assignedTo: 'Talent Acquisition Team',
+      internalNotes: 'Application application under consideration by executive committee.',
+      type: 'career'
+    }))
+  ];
+
+  res.json({ success: true, count: results.length, results });
+});
+
 app.put('/api/consultations/:id', checkAdminAuth, (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, consultationMethod, assignedTo, internalNotes, rescheduledDate, rescheduledTime } = req.body;
   
   const index = DB.consultations.findIndex(c => c.id === id);
   if (index !== -1) {
-    DB.consultations[index].status = status;
+    const item = DB.consultations[index];
+    if (status) item.status = status;
+    if (consultationMethod) item.consultationMethod = consultationMethod;
+    if (assignedTo) item.assignedTo = assignedTo;
+    if (internalNotes !== undefined) item.internalNotes = internalNotes;
+    if (rescheduledDate) item.rescheduledDate = rescheduledDate;
+    if (rescheduledTime) item.rescheduledTime = rescheduledTime;
+    item.updatedAt = new Date().toISOString();
+
+    // Update CRM User Lead Status
+    const user = DB.users.find(u => u.email.toLowerCase() === item.email.toLowerCase());
+    if (user) {
+      if (status === 'approved' || status === 'rescheduled') user.leadStatus = 'Consultation Scheduled';
+      else if (status === 'completed') user.leadStatus = 'Consultation Completed';
+      else if (status === 'in_progress') user.leadStatus = 'Awaiting Response';
+      else if (status === 'cancelled' || status === 'rejected') user.leadStatus = 'Closed';
+      user.lastActive = new Date().toISOString();
+      firestoreAddOrUpdateRecord('users', user);
+    }
+
+    logUserActivity(item.email, item.fullName, `Consultation Updated (${status || 'Modified'})`, `Updated by administrator. Notes: ${internalNotes || 'None'}`);
+    pushAdminNotification('consultation_booking', 'Consultation Status Updated', `Booking for ${item.fullName} updated to ${status || 'modified'}.`, item.id);
+
     saveDatabase();
-    firestoreAddOrUpdateRecord('consultations', DB.consultations[index]);
-    writeLog("Update Consultation Status", `Consultation request id ${id} marked as ${status}.`);
-    res.json(DB.consultations[index]);
+    firestoreAddOrUpdateRecord('consultations', item);
+    writeLog("Update Consultation Record", `Consultation request id ${id} updated (Status: ${status || item.status}).`);
+    res.json(item);
   } else {
     res.status(404).json({ error: "Consultation record not found." });
   }
@@ -609,6 +896,187 @@ app.delete('/api/consultations/:id', checkAdminAuth, (req, res) => {
   } else {
     res.status(404).json({ error: "Consultation record not found." });
   }
+});
+
+// 4. CRM Users & Full Profile Aggregation (Admin Only)
+app.get('/api/crm/users', checkAdminAuth, (req, res) => {
+  // Aggregate history per user
+  const enrichedUsers = DB.users.map(u => {
+    const email = u.email.toLowerCase();
+    const userConsultations = DB.consultations.filter(c => c.email.toLowerCase() === email);
+    const userMessages = DB.messages.filter(m => m.email.toLowerCase() === email);
+    const userApps = DB.applications.filter(a => a.email.toLowerCase() === email);
+    const userComms = DB.communications.filter(c => c.userEmail.toLowerCase() === email);
+    const userTasks = DB.followups.filter(f => f.userEmail.toLowerCase() === email);
+    const userTimeline = DB.userActivities.filter(a => a.userEmail.toLowerCase() === email);
+
+    return {
+      ...u,
+      consultationCount: userConsultations.length,
+      totalSubmissions: userConsultations.length + userMessages.length + userApps.length,
+      consultations: userConsultations,
+      messages: userMessages,
+      applications: userApps,
+      communications: userComms,
+      followups: userTasks,
+      activities: userTimeline
+    };
+  });
+
+  res.json(enrichedUsers);
+});
+
+app.put('/api/crm/users/:id', checkAdminAuth, (req, res) => {
+  const { id } = req.params;
+  const { leadStatus, tags, assignedAdmin, notes, fullName, phone, company } = req.body;
+
+  const index = DB.users.findIndex(u => u.id === id);
+  if (index !== -1) {
+    const user = DB.users[index];
+    if (leadStatus) user.leadStatus = leadStatus;
+    if (Array.isArray(tags)) user.tags = tags;
+    if (assignedAdmin) user.assignedAdmin = assignedAdmin;
+    if (notes !== undefined) user.notes = notes;
+    if (fullName) user.fullName = fullName;
+    if (phone) user.phone = phone;
+    if (company) user.company = company;
+    user.lastActive = new Date().toISOString();
+
+    saveDatabase();
+    firestoreAddOrUpdateRecord('users', user);
+    writeLog("Updated User Profile", `CRM client profile ${user.fullName} (${user.email}) updated.`);
+    res.json(user);
+  } else {
+    res.status(404).json({ error: "User profile record not found." });
+  }
+});
+
+// 5. Communications & Email Dispatcher (Admin Only)
+app.get('/api/communications', checkAdminAuth, (req, res) => {
+  res.json(DB.communications);
+});
+
+app.post('/api/communications/send', checkAdminAuth, (req, res) => {
+  const { userEmail, userName, subject, message, templateUsed } = req.body;
+  if (!userEmail || !subject || !message) {
+    return res.status(400).json({ error: "Email recipient, subject, and message text are mandatory." });
+  }
+
+  const record: CommunicationRecord = {
+    id: `comm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userEmail: userEmail.toLowerCase(),
+    userName: userName || userEmail,
+    type: 'email',
+    subject,
+    message,
+    senderAdmin: 'Arthur Richards (Managing Partner)',
+    templateUsed: templateUsed || 'Custom Briefing Notice',
+    sentAt: new Date().toISOString(),
+    status: 'sent'
+  };
+
+  DB.communications.unshift(record);
+
+  // Update CRM user last active
+  const user = DB.users.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
+  if (user) {
+    user.lastActive = new Date().toISOString();
+    firestoreAddOrUpdateRecord('users', user);
+  }
+
+  logUserActivity(userEmail, userName || userEmail, "Direct Email Sent", `Subject: "${subject}".`);
+  writeLog("Administrative Email Sent", `Transmitted email to ${userName} (${userEmail}) on subject "${subject}".`);
+
+  saveDatabase();
+  firestoreAddOrUpdateRecord('communications', record);
+
+  res.status(201).json({ success: true, record });
+});
+
+// 6. Follow-up Tasks (Admin Only)
+app.get('/api/followups', checkAdminAuth, (req, res) => {
+  res.json(DB.followups);
+});
+
+app.post('/api/followups', checkAdminAuth, (req, res) => {
+  const { userEmail, userName, scheduledDate, scheduledTime, note, assignedAdmin } = req.body;
+  if (!userEmail || !scheduledDate || !note) {
+    return res.status(400).json({ error: "Recipient email, scheduled date, and follow-up note are required." });
+  }
+
+  const task: FollowUpTask = {
+    id: `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userEmail: userEmail.toLowerCase(),
+    userName: userName || userEmail,
+    assignedAdmin: assignedAdmin || 'Arthur Richards (Managing Partner)',
+    scheduledDate,
+    scheduledTime: scheduledTime || '10:00 AM',
+    note,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+
+  DB.followups.unshift(task);
+  pushAdminNotification('followup_due', 'Follow-up Scheduled', `Follow-up with ${task.userName} set for ${scheduledDate}.`, task.id);
+  
+  saveDatabase();
+  firestoreAddOrUpdateRecord('followups', task);
+  res.status(201).json({ success: true, task });
+});
+
+app.put('/api/followups/:id', checkAdminAuth, (req, res) => {
+  const { id } = req.params;
+  const { status, note } = req.body;
+
+  const idx = DB.followups.findIndex(f => f.id === id);
+  if (idx !== -1) {
+    if (status) DB.followups[idx].status = status;
+    if (note) DB.followups[idx].note = note;
+
+    saveDatabase();
+    firestoreAddOrUpdateRecord('followups', DB.followups[idx]);
+    res.json(DB.followups[idx]);
+  } else {
+    res.status(404).json({ error: "Follow-up task not found." });
+  }
+});
+
+// 7. Notifications (Admin Only)
+app.get('/api/notifications', checkAdminAuth, (req, res) => {
+  res.json(DB.notifications);
+});
+
+app.post('/api/notifications/mark-read', checkAdminAuth, (req, res) => {
+  DB.notifications.forEach(n => n.read = true);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+// 8. CSV Data Export
+app.get('/api/admin/export/:type', checkAdminAuth, (req, res) => {
+  const { type } = req.params;
+  let csv = "";
+
+  if (type === 'consultations') {
+    csv = "ID,Full Name,Email,Phone,Company,Service,Date,Time,Status,Method,Assigned,Created At\n";
+    DB.consultations.forEach(c => {
+      csv += `"${c.id}","${c.fullName}","${c.email}","${c.phone}","${c.company}","${c.serviceNeeded}","${c.preferredDate}","${c.preferredTime}","${c.status}","${c.consultationMethod || 'virtual'}","${c.assignedTo || ''}","${c.createdAt}"\n`;
+    });
+  } else if (type === 'users') {
+    csv = "ID,Full Name,Email,Phone,Company,Lead Status,Tags,Assigned Admin,Registered,Last Active\n";
+    DB.users.forEach(u => {
+      csv += `"${u.id}","${u.fullName}","${u.email}","${u.phone}","${u.company}","${u.leadStatus}","${(u.tags || []).join(';')}","${u.assignedAdmin || ''}","${u.registrationDate}","${u.lastActive}"\n`;
+    });
+  } else {
+    csv = "ID,Timestamp,Details\n";
+    DB.logs.forEach(l => {
+      csv += `"${l.id}","${l.timestamp}","${l.action}: ${l.details.replace(/"/g, '""')}"\n`;
+    });
+  }
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename=richards_realty_${type}_${Date.now()}.csv`);
+  res.status(200).send(csv);
 });
 
 // 4. Contact Messages (Public Create, Admin Read/Update/Delete)

@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "supportThread": {
+      "title": "Support Thread",
+      "description": "A support conversation between a visitor and an admin",
+      "type": "object",
+      "properties": {
+        "visitorName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "visitorEmail": { "type": "string", "format": "email", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["open", "active", "resolved"] },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "lastMessageText": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["visitorName", "visitorEmail", "status", "createdAt"]
+    },
+    "supportMessage": {
+      "title": "Support Message",
+      "description": "A single message in a support thread",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "sender": { "type": "string", "enum": ["visitor", "admin"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "sender", "timestamp"]
+    },
+    "consultation": {
+      "title": "Consultation Request",
+      "description": "Corporate briefing and consultation requests submitted by clients",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "company": { "type": "string" },
+        "serviceNeeded": { "type": "string" },
+        "preferredDate": { "type": "string" },
+        "preferredTime": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "resolved", "archived"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "email", "serviceNeeded", "preferredDate"]
+    },
+    "contactMessage": {
+      "title": "Contact Message",
+      "description": "General corporate inquiry message",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "email", "message"]
+    },
+    "blogPost": {
+      "title": "Blog Post",
+      "description": "Market insights and articles",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "shortDesc": { "type": "string" },
+        "content": { "type": "string" },
+        "image": { "type": "string" },
+        "author": { "type": "string" },
+        "readTime": { "type": "string" }
+      },
+      "required": ["title", "category", "content"]
+    },
+    "analyticsEvent": {
+      "title": "Analytics Event",
+      "description": "Tracking user interactions for the newsletter funnel and page views",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["impression", "signup"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "userAgent": { "type": "string" },
+        "path": { "type": "string" }
+      },
+      "required": ["type", "timestamp"]
+    },
+    "valuationReport": {
+      "title": "RICS Valuation Report",
+      "description": "Certified RICS Red Book property valuation reports for institutional clients",
+      "type": "object",
+      "properties": {
+        "referenceNumber": { "type": "string" },
+        "propertyTitle": { "type": "string" },
+        "propertyAddress": { "type": "string" },
+        "propertyType": { "type": "string" },
+        "valuationAmount": { "type": "number" },
+        "capRate": { "type": "string" },
+        "valuationDate": { "type": "string" },
+        "status": { "type": "string" },
+        "surveyorName": { "type": "string" },
+        "ricsRegNumber": { "type": "string" }
+      },
+      "required": ["referenceNumber", "propertyTitle", "valuationAmount"]
+    }
+  },
+  "firestore": {
+    "/config/settings": {
+      "schema": "websiteSettings",
+      "description": "Global website configuration and content settings"
+    },
+    "/supportThreads/{threadId}": {
+      "schema": "supportThread",
+      "description": "Root collection for support conversations"
+    },
+    "/supportThreads/{threadId}/messages/{messageId}": {
+      "schema": "supportMessage",
+      "description": "Messages within a specific support thread"
+    },
+    "/consultations/{consultationId}": {
+      "schema": "consultation",
+      "description": "Client consultation and appointment bookings"
+    },
+    "/messages/{messageId}": {
+      "schema": "contactMessage",
+      "description": "General corporate inquiries"
+    },
+    "/blogs/{blogId}": {
+      "schema": "blogPost",
+      "description": "Market insight articles"
+    },
+    "/analyticsEvents/{eventId}": {
+      "schema": "analyticsEvent",
+      "description": "Log of user interaction events"
+    },
+    "/valuationReports/{reportId}": {
+      "schema": "valuationReport",
+      "description": "Certified RICS property valuation reports"
+    }
+  }
+}

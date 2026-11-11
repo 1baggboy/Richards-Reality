@@ -1,0 +1,843 @@
+{
+  "settings": {
+    "general": {
+      "companyName": "Richards Realty LLC",
+      "phone": "+1 (800) 555-0190",
+      "email": "consulting@richardsrealty.com",
+      "address": "600 Montgomery St, 41st Floor, San Francisco, CA 94111",
+      "workingHours": "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment",
+      "whatsappNumber": "18005550190",
+      "googleMapIframe": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus"
+    },
+    "seo": {
+      "metaTitle": "Richards Realty LLC | Elite Corporate Real Estate Advisory & Valuation",
+      "metaDescription": "Richards Realty LLC is a premier corporate real estate consultancy. We provide investment advisory, property valuation, documentation, and facility management with absolute integrity.",
+      "openGraphImage": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&h=630&q=80"
+    },
+    "social": {
+      "linkedin": "https://linkedin.com/company/richardsrealty",
+      "twitter": "https://twitter.com/richardsrealty",
+      "facebook": "https://facebook.com/richardsrealty",
+      "instagram": "https://instagram.com/richardsrealty"
+    },
+    "content": {
+      "heroHeadline": "Elite Corporate Real Estate & Valuation",
+      "heroSubheadline": "Strategic advisory, regulatory compliance, and high-end brokerage for the corporate enterprise.",
+      "heroImage": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80",
+      "aboutHeadline": "The Standard of Commercial Excellence",
+      "aboutText": "Richards Realty LLC serves the elite echelons of corporate real estate. Our firm provides uncompromising analytical precision, from RICS-certified valuations to facility management consultation. We prioritize data-driven strategies, securing optimal transaction values while navigating complex regulatory landscapes.",
+      "aboutImage": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+      "servicesHeadline": "Strategic Consulting Portfolios",
+      "servicesSubheadline": "Our expertise spans across critical corporate real estate functions, maximizing portfolio performance.",
+      "missionHeadline": "Our Mission & Vision",
+      "missionText": "How Richards Realty LLC builds trust and sets premium standards across California's real estate domains.",
+      "teamHeadline": "Meet Our Professional Team",
+      "teamSubheadline": "Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Richards Realty LLC.",
+      "faqs": [
+        {
+          "q": "What services do you provide?",
+          "a": "We provide specialized corporate real estate consultancy, certified RICS-compliant asset valuations, institutional investment underwriting, facility operational advice, local land registry document audits, development feasibility analysis, and zoning legal diagnostics.",
+          "category": "Corporate"
+        },
+        {
+          "q": "How do I book a consultation?",
+          "a": "You can book a direct briefing by clicking \"Book Consultation\" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.",
+          "category": "Corporate"
+        },
+        {
+          "q": "Do you sell or manage properties?",
+          "a": "No. We maintain strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services.",
+          "category": "Corporate"
+        },
+        {
+          "q": "Do you provide certified valuation reports?",
+          "a": "Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors.",
+          "category": "Valuations"
+        },
+        {
+          "q": "What zoning and regulatory standards do you adhere to?",
+          "a": "Our advisory operates in strict compliance with California municipal real estate codes, zoning ordinances, and eminent domain guidelines.",
+          "category": "Legal"
+        },
+        {
+          "q": "Are your valuation reports accepted by banking syndicates?",
+          "a": "Yes. All our commercial valuation books are RICS Red Book compliant and fully accepted by major financial institutions for asset financing and audit verification.",
+          "category": "Valuations"
+        }
+      ],
+      "aboutPageHeadline": "Corporate Profile",
+      "aboutPageText": "Richards Realty LLC is a premier corporate advisory and valuation firm headquartered in San Francisco. We specialize in RICS-compliant valuations, commercial transaction consulting, and strategic facility management.",
+      "aboutPageStoryHeadline": "Our Legacy",
+      "aboutPageStoryText": "Founded on the principles of integrity and analytical rigor, Richards Realty LLC has spent over two decades advising institutional investors, family offices, and multinational corporations on their most complex real estate challenges.",
+      "aboutPageMessageHeadline": "A Word From the Managing Director",
+      "aboutPageMessageText": "Our commitment to excellence is unwavering. We navigate the complexities of the real estate market to deliver actionable insights and structural resilience for our clients.",
+      "aboutPageMessageAuthor": "Arthur Richards, Managing Director",
+      "missionCoreHeadline": "Our Core Mission",
+      "missionCoreText": "To provide impartial, highly analytical, and strategic real estate advisory services that protect and enhance our clients' corporate assets and investment portfolios.",
+      "missionVisionHeadline": "Market Vision",
+      "missionVisionText": "We envision a real estate landscape where transparency and rigorous data analysis drive every major transaction, ensuring sustainable growth and risk mitigation.",
+      "missionApproachHeadline": "Analytical Approach",
+      "missionApproachText": "We employ advanced cash flow underwriting models and strict adherence to international valuation standards to deliver precise, defensible asset pricing.",
+      "missionCommitmentHeadline": "Client Commitment",
+      "missionCommitmentText": "We maintain absolute independence. By refusing to engage in brokerage or property management, we eliminate conflicts of interest, ensuring our advice is purely objective.",
+      "galleryHeadline": "Corporate Gallery",
+      "gallerySubheadline": "Explore our operational footprint, client engagements, and corporate events across California.",
+      "blogHeadline": "Market Insights",
+      "blogSubheadline": "Expert analysis, economic updates, and strategic perspectives on the commercial real estate landscape.",
+      "careersHeadline": "Career Opportunities",
+      "careersSubheadline": "Join a culture of analytical excellence and absolute integrity. We are always looking for driven professionals.",
+      "contactHeadline": "Contact Our Advisors",
+      "contactSubheadline": "Schedule a confidential briefing with our senior partners to discuss your corporate real estate objectives.",
+      "footerText": "Richards Realty LLC operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.",
+      "privacyPolicyText": "Your privacy is paramount. We adhere to stringent data protection standards to safeguard all corporate and personal information entrusted to us during engagements.",
+      "termsOfServiceText": "By accessing this directory, you agree to our corporate terms of service. All content is for informational purposes and does not constitute formal financial or legal advice until an engagement letter is executed.",
+      "cookiePolicyText": "We use essential cookies to ensure the functionality and security of our digital platforms. We do not use third-party tracking for advertising purposes.",
+      "disclaimerText": "Valuations and advisory insights are subject to market volatility. Past performance and theoretical underwriting do not guarantee future yields."
+    },
+    "styling": {
+      "primaryColor": "#0A1D37",
+      "accentColor": "#C5A02E",
+      "backgroundColor": "#ffffff",
+      "fontFamily": "font-sans",
+      "borderRadius": "rounded-none",
+      "animationStyle": "animate-in fade-in duration-200"
+    }
+  },
+  "blogs": [
+    {
+      "id": "blog-1",
+      "title": "Navigating Commercial Real Estate in a High-Interest Rate Environment",
+      "category": "Market Insights",
+      "date": "July 12, 2026",
+      "shortDesc": "An analytical study on capital allocation, cap rates adjustment, and debt restructuring strategies for enterprise portfolio managers.",
+      "content": "The landscape of commercial real estate is undergoing a structural transition as global interest rates remain elevated compared to the previous decade. For institutional owners and family offices, this shifts the strategic focus from aggressive expansion to yield optimization, asset repositioning, and debt maturity management.\n\nIn this brief, our advisory committee analyzes why premium core office and industrial spaces are showing resilience, and how corporate tenants can restructure their lease footprints to maximize efficiency. We explore key strategies including lease sale-leasebacks, structured refinancing, and asset subclass diversification (such as life sciences and data center logistics). Successful capital allocation now demands deep asset valuation integrity and rigorous technical underwriting.",
+      "image": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+      "author": "Richard V. Henderson, Managing Partner",
+      "readTime": "6 min read"
+    },
+    {
+      "id": "blog-2",
+      "title": "The Valuation Paradigm: Aligning ESG Criteria with Asset Asset Value",
+      "category": "Valuation & Advisory",
+      "date": "June 28, 2026",
+      "shortDesc": "How modern environmental standards, sustainability certifications, and energy efficiency ratings affect RICS-compliant valuations.",
+      "content": "Environmental, Social, and Governance (ESG) criteria are no longer auxiliary line items in corporate reports—they are direct drivers of risk premiums and capitalization rates. Today, premium office towers with high LEED Platinum or BREEAM ratings enjoy a 'green premium' of 4% to 11% in rental yield compared to non-certified buildings in the same submarket.\n\nConversely, assets that fail to meet baseline carbon compliance face the threat of 'brown discounting' and accelerated obsolescence. Our valuation team lays down the quantitative framework used to incorporate carbon tax liabilities, energy retrofit expenditures, and tenant demand shifts directly into Discounted Cash Flow (DCF) valuation models. Staying ahead of regulatory mandates is the only way to preserve long-term asset value.",
+      "image": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+      "author": "Elena Rostova, Head of Valuations",
+      "readTime": "8 min read"
+    },
+    {
+      "id": "blog-3",
+      "title": "Corporate Lease Restructuring: Strategies for the Post-Hybrid Workplace",
+      "category": "Corporate Solutions",
+      "date": "May 15, 2026",
+      "shortDesc": "Practical methods for large enterprises to optimize their physical office footprint while maintaining high operational performance.",
+      "content": "The corporate headquarters is being redefined. With hybrid work patterns fully established, Fortune 500 enterprises are auditing their real estate assets to eliminate excess square footage while creating collaborative 'hub' spaces that justify the commute.\n\nThis article outlines our proprietary lease negotiation framework. We discuss options for subleasing, consolidation clauses, early termination buyouts, and flex-space integrations. By aligning lease terms with actual personnel utilization data, companies can reduce corporate real estate overhead by up to 35% without impacting organizational productivity.",
+      "image": "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=800&q=80",
+      "author": "Marcus Vance, Director of Corporate Consultancy",
+      "readTime": "5 min read"
+    }
+  ],
+  "team": [
+    {
+      "id": "team-1",
+      "name": "Richard V. Henderson",
+      "position": "Founder & Managing Partner",
+      "bio": "With over 25 years of institutional real estate consultancy, Richard leads the strategic vision at Richards Realty LLC. Former Senior Vice President of Institutional Capital Markets at a top global firm, he specializes in high-value asset valuation and commercial investment advisory.",
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80",
+      "linkedin": "https://linkedin.com/in/placeholder",
+      "email": "r.henderson@richardsrealty.com"
+    },
+    {
+      "id": "team-2",
+      "name": "Elena Rostova, MRICS",
+      "position": "Partner, Head of Valuations",
+      "bio": "Elena is a chartered valuation surveyor with 18 years of experience. She heads our RICS-compliant valuations department, providing certified asset valuation reports for financial institutions, national developers, and corporate audits.",
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80",
+      "linkedin": "https://linkedin.com/in/placeholder",
+      "email": "e.rostova@richardsrealty.com"
+    },
+    {
+      "id": "team-3",
+      "name": "Marcus Vance",
+      "position": "Director of Corporate Consultancy",
+      "bio": "Marcus has structured lease-and-portfolio transactions for Fortune 500 tech and industrial leaders. He leads our corporate advisory branch, advising clients on optimal corporate headquarters footprint planning and landlord-tenant strategies.",
+      "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&h=400&q=80",
+      "linkedin": "https://linkedin.com/in/placeholder",
+      "email": "m.vance@richardsrealty.com"
+    },
+    {
+      "id": "team-4",
+      "name": "Sarah Jenkins, Esq.",
+      "position": "Senior Legal Counsel",
+      "bio": "Admitted to the California Bar with 12 years specializing in municipal zoning, real estate transactions, and property documentation audits. Sarah protects our clients' legal interest in complex asset acquisitions and structures land registry audits.",
+      "image": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80",
+      "linkedin": "https://linkedin.com/in/placeholder",
+      "email": "s.jenkins@richardsrealty.com"
+    }
+  ],
+  "gallery": [
+    {
+      "id": "gal-1",
+      "title": "Richards Realty Headquarters - Boardroom",
+      "category": "Office",
+      "image": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "gal-2",
+      "title": "Institutional Investor Round Table",
+      "category": "Meetings",
+      "image": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "gal-3",
+      "title": "Premium Skyline Commercial Landmark under Advisory",
+      "category": "Projects",
+      "image": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "gal-4",
+      "title": "Annual Corporate Real Estate Symposium",
+      "category": "Corporate Events",
+      "image": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "gal-5",
+      "title": "Technical On-Site Asset Valuation Audit",
+      "category": "Site Visits",
+      "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "gal-6",
+      "title": "Richards Executive Committee Workshop",
+      "category": "Team Activities",
+      "image": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
+    }
+  ],
+  "testimonials": [
+    {
+      "id": "test-1",
+      "name": "Executive Director",
+      "company": "Apex Global Holdings",
+      "review": "Richards Realty LLC conducted a comprehensive valuation audit of our West Coast commercial real estate portfolio. Their RICS-certified reports were incredibly thorough, enabling us to secure a major restructuring with our banking syndicate. Absolutely premier service.",
+      "rating": 5
+    },
+    {
+      "id": "test-2",
+      "name": "VP of Asset Management",
+      "company": "Metropolitan Insurance Group",
+      "review": "The investment advisory team at Richards Realty provides deep quantitative insights that go far beyond standard market reports. They understand institutional risk, regulatory pressures, and yield management.",
+      "rating": 5
+    },
+    {
+      "id": "test-3",
+      "name": "General Counsel",
+      "company": "Vanguard Tech Properties",
+      "review": "Sarah Jenkins and the land documentation assistance team guided us through an incredibly convoluted municipal zoning and land registration audit. Their professional relationships, meticulous tracking, and integrity are unmatched.",
+      "rating": 5
+    }
+  ],
+  "careers": [
+    {
+      "id": "car-1",
+      "title": "Senior Real Estate Investment Analyst",
+      "department": "Investment Advisory",
+      "location": "San Francisco, CA (Hybrid)",
+      "type": "Full-time",
+      "description": "We are seeking an experienced analyst to perform complex DCF modeling, underwriting, and macroeconomic risk analysis for high-net-worth individuals and corporate clients.",
+      "requirements": [
+        "5+ years of experience in institutional real estate underwriting or investment banking",
+        "Mastery of Argus Enterprise and advanced Excel financial modeling",
+        "CFA or equivalent professional certification highly desirable",
+        "Strong analytical narrative drafting skills"
+      ],
+      "status": "active",
+      "createdAt": "2026-11-11T13:41:19.945Z"
+    },
+    {
+      "id": "car-2",
+      "title": "Chartered Valuation Surveyor",
+      "department": "Property Valuation",
+      "location": "San Francisco, CA (On-site)",
+      "type": "Full-time",
+      "description": "Join our core valuation team. You will be responsible for conducting on-site asset audits, analyzing market data, and drafting certified RICS Red Book compliant commercial valuation reports.",
+      "requirements": [
+        "Active RICS/MRICS membership or MAI designation",
+        "Minimum 4 years of experience surveying commercial assets",
+        "Impeccable ethical standing and commitment to professional standards",
+        "Valid driver's license for regional site audits"
+      ],
+      "status": "active",
+      "createdAt": "2026-11-11T13:41:19.945Z"
+    },
+    {
+      "id": "car-3",
+      "title": "Corporate Real Estate Consulting Intern",
+      "department": "Corporate Solutions",
+      "location": "San Francisco, CA (Hybrid)",
+      "type": "Internship",
+      "description": "A fast-paced, highly mentoring internship assisting our Consulting Director. Excellent exposure to corporate lease audits, tenant advisory processes, and commercial real estate technology.",
+      "requirements": [
+        "Currently enrolled in or recently graduated from a top-tier Real Estate, Business, or Finance degree",
+        "Excellent research and writing abilities",
+        "A fast, proactive learning mindset and professional presentation skills",
+        "Available for a minimum of 6 months"
+      ],
+      "status": "active",
+      "createdAt": "2026-11-11T13:41:19.945Z"
+    }
+  ],
+  "consultations": [
+    {
+      "id": "req-1794405625561-353",
+      "fullName": "Adams Paul Alex",
+      "phone": "3408747029",
+      "email": "changeclass0@gmail.com",
+      "company": "Rental Applicant (600 Rustic Pine Court Florida Orlando)",
+      "serviceNeeded": "Residential Rental Application",
+      "preferredDate": "2026-12-11",
+      "preferredTime": "10:00 AM",
+      "message": "--- OFFICIAL RESIDENTIAL RENTAL APPLICATION DOSSIER ---\nPROPERTY REQUESTED: 600 Rustic Pine Court Florida Orlando (Move-in: 2026-12-11, Term: 12 Months)\n\nAPPLICANT PERSONAL DETAILS:\nFull Name: Adams Paul Alex\nEmail: changeclass0@gmail.com | Phone: 3408747029\nDOB: 1997-12-18 | Marital Status: Single | Total Occupants: 1\nID / SSN: Provided (Encrypted & Verified)\n\nRESIDENTIAL HISTORY:\nCurrent Address: 651 N Broad Street (2 Years)\nCurrent Rent: $2400/mo | Landlord: Mr. Thompson (18432592584)\nReason for Leaving: Job Relocation\n\nEMPLOYMENT & FINANCIAL PROFILE:\nStatus: Full-time Employee | Employer: White Fox Lounge\nTitle: N/A | Supervisor Phone: +2348156927589\nGross Monthly Income: $8500/mo\nAdditional Funds: None\nBank: N/A\n\nCO-APPLICANTS & PETS:\nCo-Applicants: None\nMinor Occupants: None\nPets: None\n\nEMERGENCY CONTACT:\nName: Taiye Samuel Seriki (Contact) | Phone: 18432592584 | Email: N/A\n\nLEGAL DISCLOSURES:\nEvictions: No | Bankruptcy: No | Felony: No | Smoker: No\nUploaded Attachments: Income_Proof.pdf, Government_ID.pdf\nDigital Signature: aam (Executed on 2026-11-11)",
+      "status": "cancelled",
+      "consultationMethod": "physical",
+      "assignedTo": "Arthur Richards (Managing Partner)",
+      "createdAt": "2026-11-11T14:00:25.561Z",
+      "updatedAt": "2026-11-11T14:20:13.052Z"
+    }
+  ],
+  "messages": [],
+  "applications": [],
+  "subscribers": [],
+  "logs": [
+    {
+      "id": "log-1794420117619-326",
+      "action": "Admin Authorization",
+      "details": "Successful login for account: admin@richardsrealty.com",
+      "timestamp": "2026-11-11T18:01:57.619Z"
+    },
+    {
+      "id": "log-1794419677583-709",
+      "action": "Database Refresh",
+      "details": "Administrative cache updated to the newest updates from Firestore.",
+      "timestamp": "2026-11-11T17:54:37.583Z"
+    },
+    {
+      "id": "log-1794419586637-654",
+      "action": "Admin Authorization",
+      "details": "Successful login for account: admin@richardsrealty.com",
+      "timestamp": "2026-11-11T17:53:06.637Z"
+    },
+    {
+      "id": "log-1794411060634-912",
+      "action": "Updated User Profile",
+      "details": "CRM client profile Adams Paul (lookuptoadams@gmail.com) updated.",
+      "timestamp": "2026-11-11T15:31:00.634Z"
+    },
+    {
+      "id": "log-1794411025145-228",
+      "action": "Admin Authorization",
+      "details": "Successful login for account: admin@richardsrealty.com",
+      "timestamp": "2026-11-11T15:30:25.145Z"
+    },
+    {
+      "id": "log-1794406813054-339",
+      "action": "Update Consultation Record",
+      "details": "Consultation request id req-1794405625561-353 updated (Status: cancelled).",
+      "timestamp": "2026-11-11T14:20:13.054Z"
+    },
+    {
+      "id": "log-1794406798002-761",
+      "action": "Update Consultation Record",
+      "details": "Consultation request id req-1794405625561-353 updated (Status: completed).",
+      "timestamp": "2026-11-11T14:19:58.002Z"
+    },
+    {
+      "id": "log-1794406787569-551",
+      "action": "Update Consultation Record",
+      "details": "Consultation request id req-1794405625561-353 updated (Status: cancelled).",
+      "timestamp": "2026-11-11T14:19:47.569Z"
+    },
+    {
+      "id": "log-1794405654022-768",
+      "action": "Admin Authorization",
+      "details": "Successful login for account: admin@richardsrealty.com",
+      "timestamp": "2026-11-11T14:00:54.022Z"
+    },
+    {
+      "id": "log-1794405625563-149",
+      "action": "Consultation Booked",
+      "details": "New consultation scheduled by Adams Paul Alex (Rental Applicant (600 Rustic Pine Court Florida Orlando)) regarding Residential Rental Application.",
+      "timestamp": "2026-11-11T14:00:25.563Z"
+    },
+    {
+      "id": "log-1794404479946-665",
+      "action": "Database Initialization",
+      "details": "Initial database seed created successfully.",
+      "timestamp": "2026-11-11T13:41:19.946Z"
+    }
+  ],
+  "drafts": [
+    {
+      "id": "draft-1794405900522",
+      "fullName": "Adams Paul",
+      "email": "lookuptoadams@gmail.com",
+      "phone": "+2348156927589",
+      "company": "",
+      "serviceNeeded": "Residential Rental Application",
+      "preferredDate": "",
+      "preferredTime": "morning",
+      "message": "",
+      "currentStep": 1,
+      "totalSteps": 2,
+      "completedFieldsCount": 4,
+      "status": "in_progress",
+      "lastTouchedAt": "2026-11-11T14:08:40.664Z"
+    },
+    {
+      "id": "draft-1794405128776",
+      "fullName": "Adams Paul Alex",
+      "email": "changeclass0@gmail.com",
+      "phone": "3408747029",
+      "company": "",
+      "serviceNeeded": "Residential Rental Application",
+      "preferredDate": "",
+      "preferredTime": "morning",
+      "message": "",
+      "currentStep": 1,
+      "totalSteps": 2,
+      "completedFieldsCount": 4,
+      "status": "in_progress",
+      "lastTouchedAt": "2026-11-11T14:00:25.708Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "usr-1794405900521-27",
+      "fullName": "Adams Paul",
+      "email": "lookuptoadams@gmail.com",
+      "phone": "+2348156927589",
+      "company": "",
+      "leadStatus": "Awaiting Response",
+      "tags": [
+        "Consultation Client"
+      ],
+      "assignedAdmin": "Arthur Richards (Managing Partner)",
+      "registrationDate": "2026-11-11T14:05:00.521Z",
+      "lastActive": "2026-11-11T15:31:00.634Z",
+      "notes": ""
+    },
+    {
+      "id": "usr-1794405128775-835",
+      "fullName": "Adams Paul Alex",
+      "email": "changeclass0@gmail.com",
+      "phone": "34087470230",
+      "company": "Rental Applicant (600 Rustic Pine Court Florida Orlando)",
+      "leadStatus": "Closed",
+      "tags": [
+        "Consultation Client"
+      ],
+      "assignedAdmin": "Arthur Richards (Managing Partner)",
+      "registrationDate": "2026-11-11T13:52:08.775Z",
+      "lastActive": "2026-11-11T14:20:13.052Z",
+      "notes": ""
+    }
+  ],
+  "communications": [],
+  "followups": [],
+  "notifications": [
+    {
+      "id": "notif-1794406813053-97",
+      "type": "consultation_booking",
+      "title": "Consultation Status Updated",
+      "message": "Booking for Adams Paul Alex updated to cancelled.",
+      "referenceId": "req-1794405625561-353",
+      "read": true,
+      "timestamp": "2026-11-11T14:20:13.053Z"
+    },
+    {
+      "id": "notif-1794406798002-428",
+      "type": "consultation_booking",
+      "title": "Consultation Status Updated",
+      "message": "Booking for Adams Paul Alex updated to completed.",
+      "referenceId": "req-1794405625561-353",
+      "read": true,
+      "timestamp": "2026-11-11T14:19:58.002Z"
+    },
+    {
+      "id": "notif-1794406787567-921",
+      "type": "consultation_booking",
+      "title": "Consultation Status Updated",
+      "message": "Booking for Adams Paul Alex updated to cancelled.",
+      "referenceId": "req-1794405625561-353",
+      "read": true,
+      "timestamp": "2026-11-11T14:19:47.567Z"
+    },
+    {
+      "id": "notif-1794405900522-215",
+      "type": "form_draft",
+      "title": "Incomplete Consultation Draft",
+      "message": "Adams Paul started filling out a Residential Rental Application consultation form.",
+      "referenceId": "draft-1794405900522",
+      "read": true,
+      "timestamp": "2026-11-11T14:05:00.522Z"
+    },
+    {
+      "id": "notif-1794405900521-901",
+      "type": "new_user",
+      "title": "New Client Profile Created",
+      "message": "Created client record for Adams Paul (lookuptoadams@gmail.com).",
+      "referenceId": "usr-1794405900521-27",
+      "read": true,
+      "timestamp": "2026-11-11T14:05:00.521Z"
+    },
+    {
+      "id": "notif-1794405625562-695",
+      "type": "consultation_booking",
+      "title": "New Consultation Booking",
+      "message": "Adams Paul Alex submitted a briefing request for Residential Rental Application.",
+      "referenceId": "req-1794405625561-353",
+      "read": true,
+      "timestamp": "2026-11-11T14:00:25.562Z"
+    },
+    {
+      "id": "notif-1794405128776-102",
+      "type": "form_draft",
+      "title": "Incomplete Consultation Draft",
+      "message": "Adams Paul Alex started filling out a Residential Rental Application consultation form.",
+      "referenceId": "draft-1794405128776",
+      "read": true,
+      "timestamp": "2026-11-11T13:52:08.776Z"
+    },
+    {
+      "id": "notif-1794405128776-104",
+      "type": "new_user",
+      "title": "New Client Profile Created",
+      "message": "Created client record for Adams Paul Alex (changeclass0@gmail.com).",
+      "referenceId": "usr-1794405128775-835",
+      "read": true,
+      "timestamp": "2026-11-11T13:52:08.776Z"
+    }
+  ],
+  "userActivities": [
+    {
+      "id": "act-1794406813052-219",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Consultation Updated (cancelled)",
+      "details": "Updated by administrator. Notes: None",
+      "timestamp": "2026-11-11T14:20:13.052Z"
+    },
+    {
+      "id": "act-1794406798001-289",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Consultation Updated (completed)",
+      "details": "Updated by administrator. Notes: None",
+      "timestamp": "2026-11-11T14:19:58.001Z"
+    },
+    {
+      "id": "act-1794406787567-751",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Consultation Updated (cancelled)",
+      "details": "Updated by administrator. Notes: None",
+      "timestamp": "2026-11-11T14:19:47.567Z"
+    },
+    {
+      "id": "act-1794406120664-101",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:08:40.664Z"
+    },
+    {
+      "id": "act-1794406113300-616",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:08:33.300Z"
+    },
+    {
+      "id": "act-1794405931982-256",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:31.982Z"
+    },
+    {
+      "id": "act-1794405929301-55",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:29.301Z"
+    },
+    {
+      "id": "act-1794405925290-882",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:25.290Z"
+    },
+    {
+      "id": "act-1794405922179-852",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:22.179Z"
+    },
+    {
+      "id": "act-1794405920330-987",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:20.330Z"
+    },
+    {
+      "id": "act-1794405919669-526",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:19.669Z"
+    },
+    {
+      "id": "act-1794405904495-218",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:04.495Z"
+    },
+    {
+      "id": "act-1794405900522-837",
+      "userEmail": "lookuptoadams@gmail.com",
+      "userName": "Adams Paul",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:05:00.522Z"
+    },
+    {
+      "id": "act-1794405625708-789",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:00:25.708Z"
+    },
+    {
+      "id": "act-1794405625561-634",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Submitted Consultation Brief",
+      "details": "Scheduled Residential Rental Application briefing for 2026-12-11 (10:00 AM).",
+      "timestamp": "2026-11-11T14:00:25.561Z"
+    },
+    {
+      "id": "act-1794405620273-304",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:00:20.273Z"
+    },
+    {
+      "id": "act-1794405611476-125",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T14:00:11.476Z"
+    },
+    {
+      "id": "act-1794405545090-954",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:59:05.090Z"
+    },
+    {
+      "id": "act-1794405264282-66",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:54:24.282Z"
+    },
+    {
+      "id": "act-1794405258682-6",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:54:18.682Z"
+    },
+    {
+      "id": "act-1794405256932-255",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:54:16.932Z"
+    },
+    {
+      "id": "act-1794405253919-95",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:54:13.919Z"
+    },
+    {
+      "id": "act-1794405245640-408",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:54:05.640Z"
+    },
+    {
+      "id": "act-1794405232841-244",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:52.842Z"
+    },
+    {
+      "id": "act-1794405227112-705",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:47.112Z"
+    },
+    {
+      "id": "act-1794405223843-144",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:43.843Z"
+    },
+    {
+      "id": "act-1794405217887-507",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:37.887Z"
+    },
+    {
+      "id": "act-1794405212881-277",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:32.881Z"
+    },
+    {
+      "id": "act-1794405198738-345",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:18.738Z"
+    },
+    {
+      "id": "act-1794405190865-389",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:10.865Z"
+    },
+    {
+      "id": "act-1794405183261-336",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:53:03.261Z"
+    },
+    {
+      "id": "act-1794405174144-847",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:54.144Z"
+    },
+    {
+      "id": "act-1794405172241-42",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:52.241Z"
+    },
+    {
+      "id": "act-1794405159357-626",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:39.357Z"
+    },
+    {
+      "id": "act-1794405148052-205",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:28.052Z"
+    },
+    {
+      "id": "act-1794405144253-356",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:24.253Z"
+    },
+    {
+      "id": "act-1794405136932-52",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:16.932Z"
+    },
+    {
+      "id": "act-1794405135083-714",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:15.083Z"
+    },
+    {
+      "id": "act-1794405131592-980",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 4/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:11.592Z"
+    },
+    {
+      "id": "act-1794405128776-84",
+      "userEmail": "changeclass0@gmail.com",
+      "userName": "Adams Paul Alex",
+      "action": "Form Draft Saved",
+      "details": "Completed 3/8 fields for Residential Rental Application.",
+      "timestamp": "2026-11-11T13:52:08.776Z"
+    }
+  ]
+}

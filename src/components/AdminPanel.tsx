@@ -1,16 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Lock, User, LogOut, LayoutDashboard, Settings as SettingsIcon, 
   FileText, MessageSquare, Briefcase, Users, Image as ImageIcon, 
   Mail, Activity, ShieldCheck, Database, Check, Trash2, Edit2, 
-  Plus, X, ChevronRight, Eye, ShieldAlert, RefreshCw, Upload, Download
+  Plus, X, ChevronRight, Eye, ShieldAlert, RefreshCw, Upload, Download, TrendingUp, Printer,
+  Search, Calendar, Clock, Filter, Bell, CheckCircle2, XCircle, AlertCircle,
+  Phone, Building2, Tag, Send, ChevronDown, ChevronUp, UserCheck, ArrowUpRight,
+  PieChart, BarChart2, Layers, Clock3, CornerUpLeft, MoreVertical, Paperclip, HelpCircle
 } from 'lucide-react';
 import { 
   ConsultationRequest, ContactMessage, BlogPost, TeamMember, 
   GalleryItem, Testimonial, JobListing, JobApplication, 
-  NewsletterSubscriber, WebsiteSettings, SystemLog 
+  NewsletterSubscriber, WebsiteSettings, SystemLog,
+  ConsultationDraft, UserProfile, CommunicationRecord, FollowUpTask, AdminNotification,
+  ConsultationStatus, LeadStatus, ConsultationMethod
 } from '../types';
 import { useToast } from './ui/Toast';
+import SupportInbox from './SupportInbox';
+import PerformanceDashboard from './PerformanceDashboard';
+import ActivityHeatmapWidget from './ActivityHeatmapWidget';
+import { auth } from '../lib/firebase';
+import { signOut } from 'firebase/auth';
+import { PrintHeader, PrintFooter, handleImmediatePrint } from './PrintHeaderFooter';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -22,12 +33,18 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [adminRole, setAdminRole] = useState<'Super Administrator' | 'Advisory Consultant' | 'Support Manager'>('Super Administrator');
+
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'crm_users' | 'drafts' | 'submissions' | 'communications' | 'followups' | 'support_chat' | 'content' | 'blogs' | 'team' | 'gallery' | 'careers' | 'settings' | 'logs'>('overview');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState('general');
 
   // Database lists
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
   const [consultations, setConsultations] = useState<ConsultationRequest[]>([]);
+  const [drafts, setDrafts] = useState<ConsultationDraft[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -36,8 +53,31 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [communications, setCommunications] = useState<CommunicationRecord[]>([]);
+  const [followups, setFollowups] = useState<FollowUpTask[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
-  // Editing UI states
+  // Search & Filters
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [leadFilter, setLeadFilter] = useState<string>('all');
+  const [submissionFilter, setSubmissionFilter] = useState<string>('all');
+  const [consultationViewMode, setConsultationViewMode] = useState<'list' | 'calendar'>('list');
+
+  // Drawers & Modals
+  const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRequest | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<{ type: 'message' | 'application'; data: any } | null>(null);
+  const [isPrintingRecord, setIsPrintingRecord] = useState(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailRecipient, setEmailRecipient] = useState({ email: '', name: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', template: 'Custom Briefing Notice', message: '' });
+  const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
+  const [followupForm, setFollowupForm] = useState({ userEmail: '', userName: '', scheduledDate: '', scheduledTime: '10:00 AM', note: '' });
+
+  // Content Editing Forms
   const [isBlogFormOpen, setIsBlogFormOpen] = useState(false);
   const [blogFormData, setBlogFormData] = useState({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richards Realty Advisory', readTime: '5 min read' });
   const [isTeamFormOpen, setIsTeamFormOpen] = useState(false);
@@ -46,12 +86,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [galleryFormData, setGalleryFormData] = useState({ title: '', category: 'Office' as any, image: '' });
   const [isCareerFormOpen, setIsCareerFormOpen] = useState(false);
   const [careerFormData, setCareerFormData] = useState({ id: '', title: '', department: 'Investment Advisory', location: 'San Francisco, CA', type: 'Full-time' as any, description: '', requirements: '' });
-  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
-  const [settingsSuccess, setSettingsSuccess] = useState(false);
-
-  // Active readers
-  const [readingMessage, setReadingMessage] = useState<ContactMessage | null>(null);
-  const [readingApplication, setReadingApplication] = useState<JobApplication | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load backend data
@@ -60,23 +94,31 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       const headers = { 'Authorization': `Bearer ${adminToken}` };
       
       const [
-        resSettings, resConsultations, resMessages, resBlogs, 
-        resTeam, resGallery, resCareers, resApps, resSubs, resLogs
+        resSettings, resConsultations, resDrafts, resUsers, resMessages, 
+        resBlogs, resTeam, resGallery, resCareers, resApps, resSubs, 
+        resLogs, resComms, resTasks, resNotifs
       ] = await Promise.all([
-        fetch('/api/settings').then(r => r.json()),
-        fetch('/api/consultations', { headers }).then(r => r.json()),
-        fetch('/api/messages', { headers }).then(r => r.json()),
-        fetch('/api/blogs').then(r => r.json()),
-        fetch('/api/team').then(r => r.json()),
-        fetch('/api/gallery').then(r => r.json()),
-        fetch('/api/careers').then(r => r.json()),
-        fetch('/api/applications', { headers }).then(r => r.json()),
-        fetch('/api/subscribers', { headers }).then(r => r.json()),
-        fetch('/api/logs', { headers }).then(r => r.json())
+        fetch('/api/settings').then(r => r.json()).catch(() => null),
+        fetch('/api/consultations', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/consultations/drafts', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/crm/users', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/messages', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/blogs').then(r => r.json()).catch(() => []),
+        fetch('/api/team').then(r => r.json()).catch(() => []),
+        fetch('/api/gallery').then(r => r.json()).catch(() => []),
+        fetch('/api/careers').then(r => r.json()).catch(() => []),
+        fetch('/api/applications', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/subscribers', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/logs', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/communications', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/followups', { headers }).then(r => r.json()).catch(() => []),
+        fetch('/api/notifications', { headers }).then(r => r.json()).catch(() => [])
       ]);
 
       if (resSettings && !resSettings.error) setSettings(resSettings);
       if (Array.isArray(resConsultations)) setConsultations(resConsultations);
+      if (Array.isArray(resDrafts)) setDrafts(resDrafts);
+      if (Array.isArray(resUsers)) setUsers(resUsers);
       if (Array.isArray(resMessages)) setMessages(resMessages);
       if (Array.isArray(resBlogs)) setBlogs(resBlogs);
       if (Array.isArray(resTeam)) setTeam(resTeam);
@@ -85,6 +127,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       if (Array.isArray(resApps)) setApplications(resApps);
       if (Array.isArray(resSubs)) setSubscribers(resSubs);
       if (Array.isArray(resLogs)) setLogs(resLogs);
+      if (Array.isArray(resComms)) setCommunications(resComms);
+      if (Array.isArray(resTasks)) setFollowups(resTasks);
+      if (Array.isArray(resNotifs)) setNotifications(resNotifs);
     } catch (err) {
       console.error("Failed loading administrative data:", err);
     }
@@ -94,15 +139,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     if (!token || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const response = await fetch('/api/admin/refresh', {
+      await fetch('/api/admin/refresh', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) {
-        console.error("Failed to sync from Firestore");
-      }
+      toastSuccess('Database cache synced directly with Firestore.', 'Sync Completed');
     } catch (err) {
       console.error("Error manual sync:", err);
     } finally {
@@ -131,8 +172,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       if (response.ok && data.token) {
         localStorage.setItem('richards_admin_token', data.token);
         setToken(data.token);
+        toastSuccess("Authenticated into Executive Control Hub.", "Access Granted");
       } else {
-        setAuthError(data.error || 'Invalid administrator password.');
+        setAuthError(data.error || 'Invalid administrator credentials.');
       }
     } catch (err) {
       setAuthError('Connection failed. Backend server not running.');
@@ -142,10 +184,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const handleLogout = () => {
     localStorage.removeItem('richards_admin_token');
     setToken(null);
+    signOut(auth);
+    onClose();
   };
 
-  // Actions
-  const handleUpdateConsultationStatus = async (id: string, status: 'pending' | 'contacted' | 'completed') => {
+  // Status Updates
+  const handleUpdateConsultation = async (id: string, updates: Partial<ConsultationRequest>) => {
     try {
       const res = await fetch(`/api/consultations/${id}`, {
         method: 'PUT',
@@ -153,54 +197,148 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify(updates)
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess(`Consultation record updated successfully.`, `Update Saved`);
+        loadAdminData(token!);
+        setSelectedConsultation(null);
+      }
     } catch (err) {
-      console.error(err);
+      toastError('Failed to update consultation record.', 'Update Error');
     }
   };
 
   const handleDeleteConsultation = async (id: string) => {
-    if (!window.confirm("Delete consultation booking record?")) return;
+    if (!window.confirm("Delete consultation booking record permanently?")) return;
     try {
       const res = await fetch(`/api/consultations/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess('Consultation record removed.', 'Record Deleted');
+        loadAdminData(token!);
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleUpdateMessageStatus = async (id: string, status: 'unread' | 'read') => {
+  // User Profile Update
+  const handleUpdateUser = async (id: string, updates: any) => {
     try {
-      const res = await fetch(`/api/messages/${id}`, {
+      const res = await fetch(`/api/crm/users/${id}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify(updates)
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess('Client CRM record updated.', 'Profile Saved');
+        loadAdminData(token!);
+      }
+    } catch (err) {
+      toastError('Failed updating client profile.', 'Error');
+    }
+  };
+
+  // Send Email Communication
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailRecipient.email || !emailForm.subject || !emailForm.message) {
+      toastWarning('Please fill out all email fields.', 'Incomplete Form');
+      return;
+    }
+    try {
+      const res = await fetch('/api/communications/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userEmail: emailRecipient.email,
+          userName: emailRecipient.name,
+          subject: emailForm.subject,
+          message: emailForm.message,
+          templateUsed: emailForm.template
+        })
+      });
+      if (res.ok) {
+        toastSuccess(`Corporate email transmitted to ${emailRecipient.email}.`, 'Email Dispatched');
+        setIsEmailModalOpen(false);
+        setEmailForm({ subject: '', template: 'Custom Briefing Notice', message: '' });
+        loadAdminData(token!);
+      }
+    } catch (err) {
+      toastError('Failed to dispatch email.', 'Transmission Error');
+    }
+  };
+
+  // Schedule Followup
+  const handleScheduleFollowup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!followupForm.userEmail || !followupForm.scheduledDate || !followupForm.note) {
+      toastWarning('Please populate follow-up details.', 'Incomplete Form');
+      return;
+    }
+    try {
+      const res = await fetch('/api/followups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(followupForm)
+      });
+      if (res.ok) {
+        toastSuccess(`Follow-up task scheduled for ${followupForm.scheduledDate}.`, 'Task Scheduled');
+        setIsFollowupModalOpen(false);
+        setFollowupForm({ userEmail: '', userName: '', scheduledDate: '', scheduledTime: '10:00 AM', note: '' });
+        loadAdminData(token!);
+      }
+    } catch (err) {
+      toastError('Failed scheduling follow-up.', 'Error');
+    }
+  };
+
+  const handleMarkFollowupDone = async (id: string) => {
+    try {
+      const res = await fetch(`/api/followups/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'completed' })
+      });
+      if (res.ok) {
+        toastSuccess('Follow-up task marked completed.', 'Completed');
+        loadAdminData(token!);
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleDeleteMessage = async (id: string) => {
-    if (!window.confirm("Delete message history record?")) return;
+  const handleMarkNotificationsRead = async () => {
     try {
-      const res = await fetch(`/api/messages/${id}`, {
-        method: 'DELETE',
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) loadAdminData(token!);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // CSV Export
+  const handleExportCSV = (type: string) => {
+    window.open(`/api/admin/export/${type}?token=${token}`, '_blank');
   };
 
   // Blog CRUD
@@ -220,6 +358,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       if (res.ok) {
         setIsBlogFormOpen(false);
         setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richards Realty Advisory', readTime: '5 min read' });
+        toastSuccess('Blog insight published.', 'Saved');
         loadAdminData(token!);
       }
     } catch (err) {
@@ -228,7 +367,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteBlog = async (id: string) => {
-    if (!window.confirm("Withdraw this insight publication permanently?")) return;
+    if (!window.confirm("Delete article?")) return;
     try {
       const res = await fetch(`/api/blogs/${id}`, {
         method: 'DELETE',
@@ -257,6 +396,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       if (res.ok) {
         setIsTeamFormOpen(false);
         setTeamFormData({ id: '', name: '', position: '', bio: '', image: '', linkedin: '', email: '' });
+        toastSuccess('Personnel profile saved.', 'Saved');
         loadAdminData(token!);
       }
     } catch (err) {
@@ -265,7 +405,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteTeam = async (id: string) => {
-    if (!window.confirm("Remove this personnel record?")) return;
+    if (!window.confirm("Remove this team member?")) return;
     try {
       const res = await fetch(`/api/team/${id}`, {
         method: 'DELETE',
@@ -292,6 +432,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       if (res.ok) {
         setIsGalleryFormOpen(false);
         setGalleryFormData({ title: '', category: 'Office', image: '' });
+        toastSuccess('Gallery asset registered.', 'Saved');
         loadAdminData(token!);
       }
     } catch (err) {
@@ -329,6 +470,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       if (res.ok) {
         setIsCareerFormOpen(false);
         setCareerFormData({ id: '', title: '', department: 'Investment Advisory', location: 'San Francisco, CA', type: 'Full-time', description: '', requirements: '' });
+        toastSuccess('Career listing published.', 'Saved');
         loadAdminData(token!);
       }
     } catch (err) {
@@ -337,7 +479,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteCareer = async (id: string) => {
-    if (!window.confirm("Withdraw this active job opening?")) return;
+    if (!window.confirm("Withdraw this vacancy?")) return;
     try {
       const res = await fetch(`/api/careers/${id}`, {
         method: 'DELETE',
@@ -349,486 +491,1270 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     }
   };
 
-  // Settings Save
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSettingsLoading(true);
-    setSettingsSuccess(false);
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(settings)
-      });
-      if (res.ok) {
-        setSettingsSuccess(true);
-        setTimeout(() => setSettingsSuccess(false), 3000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSettingsLoading(false);
-    }
-  };
+  // Derived Metrics for Dashboard
+  const metrics = useMemo(() => {
+    const totalUsers = users.length;
+    const totalConsultations = consultations.length;
+    const pendingConsultations = consultations.filter(c => c.status === 'pending').length;
+    const approvedConsultations = consultations.filter(c => c.status === 'approved' || c.status === 'in_progress').length;
+    const completedConsultations = consultations.filter(c => c.status === 'completed').length;
+    const cancelledConsultations = consultations.filter(c => c.status === 'cancelled' || c.status === 'rejected').length;
+    const upcomingConsultations = consultations.filter(c => c.preferredDate >= new Date().toISOString().split('T')[0]).length;
+    const totalEnquiries = messages.length + applications.length;
+    const activeDrafts = drafts.filter(d => d.status === 'in_progress').length;
+    const pendingFollowups = followups.filter(f => f.status === 'pending').length;
+    const unreadNotifications = notifications.filter(n => !n.read).length;
 
-  // Backup restore
-  const handleBackupDownload = () => {
-    window.open(`/api/admin/backup?token=${token}`, '_blank');
-  };
-
-  const handleRestoreUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        if (!parsed.settings) throw new Error("Invalid structure.");
-        const res = await fetch('/api/admin/restore', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(parsed)
-        });
-        if (res.ok) {
-          toastSuccess("Database restored successfully!", "Database Restore");
-          loadAdminData(token!);
-        } else {
-          toastError("Restore rejected by server.", "Restore Failed");
-        }
-      } catch (err) {
-        toastError("Restoring failed. Ensure the JSON file is correct.", "Restore Error");
-      }
+    return {
+      totalUsers,
+      totalConsultations,
+      pendingConsultations,
+      approvedConsultations,
+      completedConsultations,
+      cancelledConsultations,
+      upcomingConsultations,
+      totalEnquiries,
+      activeDrafts,
+      pendingFollowups,
+      unreadNotifications
     };
-    reader.readAsText(file);
-  };
+  }, [users, consultations, messages, applications, drafts, followups, notifications]);
 
-  // Login view
+  // Global search hits
+  const searchResults = useMemo(() => {
+    if (!globalSearchQuery.trim()) return [];
+    const q = globalSearchQuery.toLowerCase();
+    const hits: { type: string; title: string; subtitle: string; action: () => void }[] = [];
+
+    users.forEach(u => {
+      if (u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.company?.toLowerCase().includes(q)) {
+        hits.push({
+          type: 'Client Profile',
+          title: u.fullName,
+          subtitle: `${u.email} | ${u.company || 'Individual'} | ${u.leadStatus}`,
+          action: () => { setSelectedUser(u); setActiveTab('crm_users'); setIsGlobalSearchOpen(false); }
+        });
+      }
+    });
+
+    consultations.forEach(c => {
+      if (c.fullName.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.serviceNeeded.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)) {
+        hits.push({
+          type: 'Consultation Booking',
+          title: `${c.fullName} - ${c.serviceNeeded}`,
+          subtitle: `Date: ${c.preferredDate} | Status: ${c.status.toUpperCase()} | Ref: ${c.id}`,
+          action: () => { setSelectedConsultation(c); setActiveTab('consultations'); setIsGlobalSearchOpen(false); }
+        });
+      }
+    });
+
+    messages.forEach(m => {
+      if (m.fullName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || m.subject.toLowerCase().includes(q)) {
+        hits.push({
+          type: 'Contact Inquiry',
+          title: `${m.fullName}: ${m.subject}`,
+          subtitle: `${m.email} | ${m.createdAt.split('T')[0]}`,
+          action: () => { setSelectedSubmission({ type: 'message', data: m }); setActiveTab('submissions'); setIsGlobalSearchOpen(false); }
+        });
+      }
+    });
+
+    return hits;
+  }, [globalSearchQuery, users, consultations, messages]);
+
+  // If not logged in, show Login UI
   if (!token) {
     return (
-      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[#F4F7F9] border border-gray-300 p-8 rounded-none shadow-2xl space-y-6">
-          <div className="text-center space-y-2">
-            <div className="inline-flex p-3 bg-[#C5A02E]/10 text-[#C5A02E] rounded-full">
-              <Lock className="h-6 w-6" />
+      <div className="fixed inset-0 z-50 bg-[#0A1D37]/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-none shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-[#0A1D37] text-[#C5A02E]">
+                <ShieldAlert className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-serif font-extrabold text-lg text-[#0A1D37] dark:text-white">Executive Control Hub</h3>
+                <p className="text-[11px] font-sans text-gray-500 dark:text-slate-400">Richards Realty LLC Administration</p>
+              </div>
             </div>
-            <h3 className="font-serif font-black text-xl text-[#0A1D37] uppercase tracking-wider">ADMINISTRATIVE PORTAL</h3>
-            <p className="text-xs text-slate-500">Secure credential verification required for Richards Realty LLC administrators.</p>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-none cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
           {authError && (
-            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-none text-xs font-sans flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 shrink-0" />
+            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs p-3 rounded-none mb-5 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{authError}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Security Email</label>
+          <form onSubmit={handleLogin} className="space-y-4 font-sans">
+            <div>
+              <label className="text-[11px] uppercase tracking-wider font-semibold text-gray-600 dark:text-slate-300 block mb-1">
+                Administrator Account
+              </label>
               <div className="relative">
-                <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-600" />
+                <User className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
                 <input
                   type="email"
                   required
-                  placeholder="admin@richardsrealty.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-none pl-9 pr-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E] transition-colors"
+                  placeholder="admin@richardsrealty.com"
+                  className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E]"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Access Keycode</label>
+            <div>
+              <label className="text-[11px] uppercase tracking-wider font-semibold text-gray-600 dark:text-slate-300 block mb-1">
+                Security Passcode
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-600" />
+                <Lock className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
                 <input
                   type="password"
                   required
-                  placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-none pl-9 pr-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E] transition-colors"
+                  placeholder="••••••••••••"
+                  className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E]"
                 />
               </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+              <p className="font-semibold text-[#0A1D37] dark:text-[#C5A02E]">Default Credentials:</p>
+              <p>Email: <span className="font-mono text-slate-800 dark:text-white">admin@richardsrealty.com</span></p>
+              <p>Password: <span className="font-mono text-slate-800 dark:text-white">richardsadmin</span></p>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#C5A02E] hover:bg-[#A68625] text-white font-sans font-bold text-xs tracking-wider py-2.5 rounded-none transition-all cursor-pointer"
+              className="w-full bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase tracking-wider py-3.5 rounded-none transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border border-[#C5A02E]/30"
             >
-              VERIFY CREDENTIALS
+              <ShieldCheck className="h-4 w-4 text-[#C5A02E]" /> Authenticate Administration Session
             </button>
           </form>
-
-          <div className="pt-4 border-t border-slate-805 flex justify-between text-[10px] text-slate-500 font-sans">
-            <span>Root account: admin@richardsrealty.com</span>
-            <span>Password: richardsadmin</span>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="w-full text-center text-xs text-gray-500 hover:text-[#0A1D37] hover:underline pt-2 cursor-pointer"
-          >
-            Cancel and Return to Website
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col font-sans">
-      {/* Header */}
-      <header className="bg-[#F4F7F9] border-b border-gray-300 px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-[#F4F7F9] dark:bg-slate-950 flex flex-col font-sans overflow-hidden animate-in fade-in duration-200">
+      
+      {/* --- TOP BAR NAVIGATION --- */}
+      <header className="bg-[#0A1D37] border-b border-[#0A1D37]/20 dark:border-slate-800 text-white h-16 shrink-0 px-4 sm:px-6 flex items-center justify-between shadow-lg">
+        
+        {/* Left Brand & Mobile Menu Toggle */}
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#C5A02E] rounded-none text-white">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="font-serif font-bold text-base tracking-wide text-[#0A1D37] block leading-none">ADMINISTRATIVE HQ</h1>
-            <span className="text-[10px] font-sans text-slate-500 uppercase">Richards Realty LLC • Global System Manager</span>
+          <button 
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            className="md:hidden p-1.5 hover:bg-slate-800 rounded-none text-slate-300"
+          >
+            <Layers className="h-5 w-5" />
+          </button>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-[#C5A02E] flex items-center justify-center font-serif font-bold text-[#0A1D37] text-base shadow-inner">
+              R
+            </div>
+            <div>
+              <h1 className="font-serif font-bold text-sm tracking-wide text-white flex items-center gap-2">
+                Richards Realty <span className="text-[#C5A02E] text-xs font-sans font-normal px-1.5 py-0.5 bg-[#C5A02E]/10 border border-[#C5A02E]/30 hidden sm:inline-block">Executive Hub</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 hidden sm:block">Administrative Advisory & CRM System</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+
+        {/* Global Search Bar */}
+        <div className="relative max-w-md w-full mx-4 hidden md:block">
+          <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Global search clients, bookings, reference IDs... (⌘K)"
+            value={globalSearchQuery}
+            onChange={(e) => {
+              setGlobalSearchQuery(e.target.value);
+              setIsGlobalSearchOpen(true);
+            }}
+            onFocus={() => setIsGlobalSearchOpen(true)}
+            className="w-full bg-slate-800/80 border border-slate-700 text-xs text-white placeholder:text-slate-400 pl-9 pr-8 py-2 rounded-none focus:outline-none focus:border-[#C5A02E]"
+          />
+          {globalSearchQuery && (
+            <button 
+              onClick={() => { setGlobalSearchQuery(''); setIsGlobalSearchOpen(false); }}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {/* Search Dropdown Modal */}
+          {isGlobalSearchOpen && searchResults.length > 0 && (
+            <div className="absolute top-11 left-0 right-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-2xl z-50 max-h-80 overflow-y-auto font-sans">
+              <div className="p-2 bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                Matching Search Records ({searchResults.length})
+              </div>
+              {searchResults.map((hit, idx) => (
+                <button
+                  key={idx}
+                  onClick={hit.action}
+                  className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/80 border-b border-gray-100 dark:border-slate-800 transition-colors flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="text-[10px] uppercase px-1.5 py-0.5 bg-[#C5A02E]/20 text-[#C5A02E] font-bold mr-2">{hit.type}</span>
+                    <span className="text-xs font-semibold text-[#0A1D37] dark:text-white">{hit.title}</span>
+                    <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">{hit.subtitle}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#C5A02E]" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right Top Controls */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          
+          {/* Role Switcher */}
+          <div className="hidden lg:flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-2.5 py-1 text-xs text-slate-300">
+            <UserCheck className="h-3.5 w-3.5 text-[#C5A02E]" />
+            <select
+              value={adminRole}
+              onChange={(e) => setAdminRole(e.target.value as any)}
+              className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
+            >
+              <option value="Super Administrator" className="bg-slate-900">Super Administrator</option>
+              <option value="Advisory Consultant" className="bg-slate-900">Advisory Consultant</option>
+              <option value="Support Manager" className="bg-slate-900">Support Manager</option>
+            </select>
+          </div>
+
+          {/* Sync Refresh Button */}
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-2 text-gray-500 hover:text-[#0A1D37] bg-white rounded-none border border-gray-200 hover:bg-[#F4F7F9] cursor-pointer disabled:opacity-50"
-            title={isRefreshing ? "Refreshing..." : "Refresh Data"}
+            title="Sync Database with Firestore"
+            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-none border border-slate-700 transition-colors cursor-pointer"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-[#C5A02E]" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-[#C5A02E]' : ''}`} />
           </button>
+
+          {/* Notification Drawer Button */}
+          <button
+            onClick={() => setIsNotificationDrawerOpen(!isNotificationDrawerOpen)}
+            className="relative p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-none border border-slate-700 transition-colors cursor-pointer"
+          >
+            <Bell className="h-4 w-4" />
+            {metrics.unreadNotifications > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold rounded-full h-4.5 w-4.5 flex items-center justify-center animate-pulse">
+                {metrics.unreadNotifications}
+              </span>
+            )}
+          </button>
+
+          {/* User Profile & Logout */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border border-rose-500/10 rounded-none cursor-pointer transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-medium rounded-none transition-all cursor-pointer"
           >
-            <LogOut className="h-3.5 w-3.5" /> Logout
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Logout</span>
           </button>
-          <button
-            onClick={onClose}
-            className="bg-[#C5A02E] text-white hover:bg-[#A68625] px-4 py-1.5 rounded-none text-xs font-bold cursor-pointer transition-all"
-          >
-            EXIT PANEL
+
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-none cursor-pointer ml-1">
+            <X className="h-5 w-5" />
           </button>
         </div>
       </header>
 
-      {/* Main Panel split */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-64 bg-[#F4F7F9] border-r border-gray-200 overflow-y-auto">
-          <nav className="p-4 space-y-1">
-            <p className="text-[9px] uppercase font-sans tracking-widest text-slate-500 px-3 mb-2">Operations</p>
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'overview' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <LayoutDashboard className="h-4 w-4" /> Overview Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab('consultations')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'consultations' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <FileText className="h-4 w-4" /> Consultations ({consultations.filter(c => c.status === 'pending').length})
-            </button>
-            <button
-              onClick={() => setActiveTab('messages')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'messages' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <MessageSquare className="h-4 w-4" /> Contact Messages ({messages.filter(m => m.status === 'unread').length})
-            </button>
-            <button
-              onClick={() => setActiveTab('subscribers')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'subscribers' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <Mail className="h-4 w-4" /> Newsletter Subscribers
-            </button>
+      {/* --- BODY MAIN LAYOUT --- */}
+      <div className="flex flex-1 overflow-hidden relative">
+        
+        {/* --- LEFT SIDEBAR NAVIGATION --- */}
+        <aside className={`
+          w-64 bg-[#0A1D37] border-r border-[#0A1D37]/30 dark:border-slate-800 flex flex-col shrink-0 text-slate-300 transition-all z-30
+          absolute md:static top-0 bottom-0 left-0 ${isMobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
+        `}>
+          <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5 text-[#C5A02E]" /> Session: Active
+            </div>
+            <span className="text-[10px] px-2 py-0.5 bg-[#C5A02E]/20 text-[#C5A02E] font-mono font-bold">2026.4</span>
+          </div>
 
-            <p className="text-[9px] uppercase font-sans tracking-widest text-slate-500 px-3 pt-6 mb-2">Content CMS</p>
-            <button
-              onClick={() => setActiveTab('blogs')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'blogs' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <FileText className="h-4 w-4" /> Blog Insights
-            </button>
-            <button
-              onClick={() => setActiveTab('team')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'team' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <Users className="h-4 w-4" /> Corporate Team
-            </button>
-            <button
-              onClick={() => setActiveTab('gallery')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'gallery' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <ImageIcon className="h-4 w-4" /> Media Gallery
-            </button>
-            <button
-              onClick={() => setActiveTab('careers')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'careers' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <Briefcase className="h-4 w-4" /> Careers & Applicants ({applications.length})
-            </button>
+          <nav className="flex-1 overflow-y-auto p-3 space-y-6 text-xs font-sans">
+            
+            {/* Executive Section */}
+            <div>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Executive Control</p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setActiveTab('overview'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'overview' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Dashboard Overview</span>
+                  </div>
+                </button>
+              </div>
+            </div>
 
-            <p className="text-[9px] uppercase font-sans tracking-widest text-slate-500 px-3 pt-6 mb-2">System</p>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'settings' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <SettingsIcon className="h-4 w-4" /> Website Settings
-            </button>
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'logs' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <Activity className="h-4 w-4" /> Security Logs
-            </button>
-            <button
-              onClick={() => setActiveTab('backup')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-none text-left transition-colors cursor-pointer ${activeTab === 'backup' ? 'bg-[#C5A02E] text-white' : 'text-slate-450 hover:bg-gray-200 hover:text-[#0A1D37]'}`}
-            >
-              <Database className="h-4 w-4" /> Database Backup
-            </button>
+            {/* Client Engagement & CRM */}
+            <div>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Consultations & CRM</p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setActiveTab('consultations'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'consultations' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Calendar className="h-4 w-4" />
+                    <span>Bookings & Calendar</span>
+                  </div>
+                  {metrics.pendingConsultations > 0 && (
+                    <span className="px-1.5 py-0.2 bg-amber-500 text-slate-950 font-bold text-[10px]">{metrics.pendingConsultations}</span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('crm_users'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'crm_users' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="h-4 w-4" />
+                    <span>Client CRM Directory</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">{users.length}</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('drafts'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'drafts' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Clock3 className="h-4 w-4" />
+                    <span>Drafts & Progress</span>
+                  </div>
+                  {metrics.activeDrafts > 0 && (
+                    <span className="px-1.5 py-0.2 bg-indigo-500 text-white font-bold text-[10px]">{metrics.activeDrafts}</span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('support_chat'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'support_chat' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>Live Support Inbox</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Submissions & Comms */}
+            <div>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Inquiries & Outreach</p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setActiveTab('submissions'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'submissions' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FileText className="h-4 w-4" />
+                    <span>Submissions Center</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">{metrics.totalEnquiries}</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('communications'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'communications' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Mail className="h-4 w-4" />
+                    <span>Email Dispatcher</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('followups'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-none font-medium transition-colors text-left cursor-pointer ${activeTab === 'followups' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold shadow-md' : 'hover:bg-slate-800/80 hover:text-white'}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Clock className="h-4 w-4" />
+                    <span>Follow-Up Scheduler</span>
+                  </div>
+                  {metrics.pendingFollowups > 0 && (
+                    <span className="px-1.5 py-0.2 bg-emerald-500 text-slate-950 font-bold text-[10px]">{metrics.pendingFollowups}</span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Content & Portal */}
+            <div>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Website Content</p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setActiveTab('content'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'content' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <SettingsIcon className="h-4 w-4" /> <span>Website Content & FAQs</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('blogs'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'blogs' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <FileText className="h-4 w-4" /> <span>Market Insights ({blogs.length})</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('team'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'team' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <Users className="h-4 w-4" /> <span>Executive Officers ({team.length})</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('gallery'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'gallery' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <ImageIcon className="h-4 w-4" /> <span>Corporate Gallery ({gallery.length})</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('careers'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'careers' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <Briefcase className="h-4 w-4" /> <span>Vacancies ({careers.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* System & Audit */}
+            <div>
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">System & Governance</p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setActiveTab('settings'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'settings' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <Database className="h-4 w-4" /> <span>SEO & Global Settings</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('logs'); setIsMobileSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-none transition-colors text-left cursor-pointer ${activeTab === 'logs' ? 'bg-[#C5A02E] text-[#0A1D37] font-bold' : 'hover:bg-slate-800/80'}`}
+                >
+                  <ShieldAlert className="h-4 w-4" /> <span>System Audit Logs ({logs.length})</span>
+                </button>
+              </div>
+            </div>
+
           </nav>
+
+          {/* Quick Export Footer */}
+          <div className="p-3 border-t border-slate-800 bg-slate-900/60">
+            <button
+              onClick={() => handleExportCSV('consultations')}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-none border border-slate-700 transition-colors cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5 text-[#C5A02E]" /> Export Bookings CSV
+            </button>
+          </div>
         </aside>
 
-        {/* Content Panel */}
-        <main className="flex-1 overflow-y-auto p-8 bg-white">
-          {/* OVERVIEW TAB */}
+        {/* --- MAIN CONTENT CANVAS --- */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-[#F4F7F9] dark:bg-slate-950 text-[#0A1D37] dark:text-slate-100">
+          
+          {/* TAB 1: EXECUTIVE DASHBOARD OVERVIEW */}
           {activeTab === 'overview' && (
-            <div className="space-y-8 animate-in fade-in duration-200">
-              <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Overview Dashboard</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-2">
-                  <p className="text-xs text-slate-500 uppercase font-sans">Pending Bookings</p>
-                  <p className="text-3xl font-bold text-[#C5A02E] font-sans">{consultations.filter(c => c.status === 'pending').length}</p>
-                  <p className="text-[10px] text-gray-500">Total requests logged: {consultations.length}</p>
+            <div className="space-y-8 animate-in fade-in duration-300">
+              
+              {/* Header Title */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2 text-[#C5A02E] text-xs font-mono font-bold uppercase tracking-wider">
+                    <ShieldCheck className="h-4 w-4" /> Certified Advisory Control Tower
+                  </div>
+                  <h2 className="font-serif font-extrabold text-2xl sm:text-3xl text-[#0A1D37] dark:text-white tracking-tight">Executive Performance & CRM Overview</h2>
+                  <p className="text-gray-500 dark:text-slate-400 text-xs mt-1">
+                    Real-time metrics, booking trends, lead progress, and active client consultations across Richards Realty LLC.
+                  </p>
                 </div>
-                <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-2">
-                  <p className="text-xs text-slate-500 uppercase font-sans">Unread Messages</p>
-                  <p className="text-3xl font-bold text-[#C5A02E] font-sans">{messages.filter(m => m.status === 'unread').length}</p>
-                  <p className="text-[10px] text-gray-500">Total history: {messages.length}</p>
-                </div>
-                <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-2">
-                  <p className="text-xs text-slate-500 uppercase font-sans">Newsletter Subscribers</p>
-                  <p className="text-3xl font-bold text-[#C5A02E] font-sans">{subscribers.length}</p>
-                  <p className="text-[10px] text-gray-500">Unique mailing list records</p>
-                </div>
-                <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-2">
-                  <p className="text-xs text-slate-500 uppercase font-sans">Active Vacancies</p>
-                  <p className="text-3xl font-bold text-[#C5A02E] font-sans">{careers.filter(c => c.status === 'active').length}</p>
-                  <p className="text-[10px] text-gray-500">Job applications logged: {applications.length}</p>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleExportCSV('users')}
+                    className="px-3.5 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-xs font-semibold text-[#0A1D37] dark:text-white hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <Download className="h-4 w-4 text-[#C5A02E]" /> Export Users CSV
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('consultations')}
+                    className="px-4 py-2 bg-[#0A1D37] hover:bg-[#071426] text-white text-xs font-bold uppercase tracking-wider rounded-none transition-colors flex items-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <Plus className="h-4 w-4 text-[#C5A02E]" /> New Briefing
+                  </button>
                 </div>
               </div>
 
-              {/* Activity Log Split */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-                <div className="bg-[#F4F7F9]/50 border border-gray-200 p-6 rounded-none space-y-4">
-                  <h3 className="font-serif font-bold text-sm text-[#0A1D37] uppercase tracking-wider">Latest System Actions</h3>
-                  <div className="divide-y divide-slate-850 max-h-[300px] overflow-y-auto pr-2">
-                    {logs.slice(0, 8).map(log => (
-                      <div key={log.id} className="py-2.5 text-xs flex justify-between gap-4 font-sans">
-                        <div>
-                          <span className="text-[#C5A02E] font-semibold">{log.action}:</span>
-                          <p className="text-gray-500 mt-0.5 text-[11px]">{log.details}</p>
+              {/* 10 Executive Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-gray-500 dark:text-slate-400">Total Registered Clients</span>
+                    <Users className="h-4 w-4 text-[#C5A02E]" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-[#0A1D37] dark:text-white">{metrics.totalUsers}</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" /> Centralized Profiles
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-gray-500 dark:text-slate-400">Total Consultations</span>
+                    <Calendar className="h-4 w-4 text-[#C5A02E]" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-[#0A1D37] dark:text-white">{metrics.totalConsultations}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Booked briefings</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-amber-600 dark:text-amber-400">Pending Review</span>
+                    <Clock className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">{metrics.pendingConsultations}</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">Requires partner action</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-indigo-600 dark:text-indigo-400">Approved / Active</span>
+                    <CheckCircle2 className="h-4 w-4 text-indigo-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">{metrics.approvedConsultations}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Scheduled or under review</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-emerald-600 dark:text-emerald-400">Completed Briefs</span>
+                    <UserCheck className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{metrics.completedConsultations}</p>
+                  <p className="text-[10px] text-emerald-600 mt-1">Concluded advisory</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-rose-600 dark:text-rose-400">Cancelled / Declined</span>
+                    <XCircle className="h-4 w-4 text-rose-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400">{metrics.cancelledConsultations}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Closed without session</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-gray-500 dark:text-slate-400">New Form Submissions</span>
+                    <FileText className="h-4 w-4 text-[#C5A02E]" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-[#0A1D37] dark:text-white">{metrics.totalEnquiries}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Inquiries & Applications</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-purple-600 dark:text-purple-400">Active Form Drafts</span>
+                    <Clock3 className="h-4 w-4 text-purple-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">{metrics.activeDrafts}</p>
+                  <p className="text-[10px] text-purple-600 mt-1">Clients currently typing</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-blue-600 dark:text-blue-400">Upcoming Schedule</span>
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">{metrics.upcomingConsultations}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Future date bookings</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase font-bold text-amber-600 dark:text-amber-400">Follow-Ups Due</span>
+                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">{metrics.pendingFollowups}</p>
+                </div>
+
+              </div>
+
+              {/* Chronological Activity Heatmap Widget (D3/Recharts) */}
+              <ActivityHeatmapWidget 
+                consultations={consultations} 
+                messages={messages} 
+                drafts={drafts} 
+              />
+
+              {/* Data Visualization Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Visual Chart 1: Consultation Status Distribution */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2 font-serif font-bold text-sm text-[#0A1D37] dark:text-white">
+                      <PieChart className="h-4 w-4 text-[#C5A02E]" /> Consultation Status Distribution
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 font-sans text-xs">
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-300 mb-1">
+                        <span>Pending Partner Approval</span>
+                        <span className="font-mono font-bold text-amber-600">{metrics.pendingConsultations} ({consultations.length ? Math.round((metrics.pendingConsultations / consultations.length) * 100) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2">
+                        <div className="bg-amber-500 h-2" style={{ width: `${consultations.length ? (metrics.pendingConsultations / consultations.length) * 100 : 0}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-300 mb-1">
+                        <span>Approved & In Progress</span>
+                        <span className="font-mono font-bold text-indigo-600">{metrics.approvedConsultations} ({consultations.length ? Math.round((metrics.approvedConsultations / consultations.length) * 100) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2">
+                        <div className="bg-indigo-600 h-2" style={{ width: `${consultations.length ? (metrics.approvedConsultations / consultations.length) * 100 : 0}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-300 mb-1">
+                        <span>Completed Advisory Sessions</span>
+                        <span className="font-mono font-bold text-emerald-600">{metrics.completedConsultations} ({consultations.length ? Math.round((metrics.completedConsultations / consultations.length) * 100) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2">
+                        <div className="bg-emerald-500 h-2" style={{ width: `${consultations.length ? (metrics.completedConsultations / consultations.length) * 100 : 0}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-300 mb-1">
+                        <span>Cancelled / Archived</span>
+                        <span className="font-mono font-bold text-rose-600">{metrics.cancelledConsultations} ({consultations.length ? Math.round((metrics.cancelledConsultations / consultations.length) * 100) : 0}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2">
+                        <div className="bg-rose-500 h-2" style={{ width: `${consultations.length ? (metrics.cancelledConsultations / consultations.length) * 100 : 0}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual Chart 2: Lead CRM Funnel Progression */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2 font-serif font-bold text-sm text-[#0A1D37] dark:text-white">
+                      <BarChart2 className="h-4 w-4 text-[#C5A02E]" /> CRM Client Pipeline Funnel
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs font-sans">
+                    {['New Lead', 'Contacted', 'Consultation Scheduled', 'Consultation Completed', 'Converted'].map((st) => {
+                      const count = users.filter(u => u.leadStatus === st).length;
+                      const pct = users.length ? Math.round((count / users.length) * 100) : 0;
+                      return (
+                        <div key={st} className="bg-slate-50 dark:bg-slate-800/80 p-2.5 border border-slate-200 dark:border-slate-700/80">
+                          <div className="flex justify-between items-center text-[11px] font-semibold">
+                            <span className="text-[#0A1D37] dark:text-slate-200">{st}</span>
+                            <span className="font-mono text-[#C5A02E]">{count} clients ({pct}%)</span>
+                          </div>
                         </div>
-                        <span className="text-slate-500 text-[10px] whitespace-nowrap">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Quick Action & Notifications Hub */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2 font-serif font-bold text-sm text-[#0A1D37] dark:text-white">
+                        <Bell className="h-4 w-4 text-[#C5A02E]" /> Priority Executive Alerts
+                      </div>
+                      <span className="text-[10px] bg-rose-500/20 text-rose-500 px-2 py-0.5 font-mono font-bold">{notifications.filter(n => !n.read).length} Unread</span>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-48 overflow-y-auto font-sans text-xs">
+                      {notifications.length === 0 ? (
+                        <p className="text-gray-400 text-center py-6">No administrative alerts logged.</p>
+                      ) : (
+                        notifications.slice(0, 4).map(notif => (
+                          <div key={notif.id} className={`p-2.5 border text-xs ${notif.read ? 'bg-slate-50 dark:bg-slate-800/40 border-gray-200 dark:border-slate-800 text-gray-500' : 'bg-amber-500/10 border-amber-500/30 text-[#0A1D37] dark:text-white font-semibold'}`}>
+                            <div className="flex justify-between items-center text-[10px] text-[#C5A02E] mb-0.5">
+                              <span className="uppercase font-bold">{notif.type.replace('_', ' ')}</span>
+                              <span>{notif.timestamp.split('T')[0]}</span>
+                            </div>
+                            <p className="text-xs">{notif.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-200 dark:border-slate-800 flex gap-2">
+                    <button
+                      onClick={() => setActiveTab('consultations')}
+                      className="flex-1 py-2 bg-[#0A1D37] hover:bg-[#071426] text-white text-xs font-bold text-center border border-[#C5A02E]/30 cursor-pointer"
+                    >
+                      Manage Bookings
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('crm_users')}
+                      className="flex-1 py-2 bg-[#C5A02E] hover:bg-[#A68625] text-white text-xs font-bold text-center cursor-pointer"
+                    >
+                      View CRM Clients
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Recent Consultation Bookings Table */}
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-200 dark:border-slate-800">
+                  <div>
+                    <h3 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">Recent Consultation Briefings</h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Latest corporate advisory briefing requests submitted by prospective clients.</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('consultations')}
+                    className="text-xs font-bold text-[#C5A02E] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    View All ({consultations.length}) <ArrowUpRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left font-sans text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-slate-700">
+                        <th className="py-3 px-3">Client / Entity</th>
+                        <th className="py-3 px-3">Advisory Specialization</th>
+                        <th className="py-3 px-3">Target Date & Period</th>
+                        <th className="py-3 px-3">Method</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+                      {consultations.slice(0, 5).map(item => (
+                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-[#0A1D37] dark:text-white">{item.fullName}</div>
+                            <div className="text-[11px] text-gray-500 dark:text-slate-400">{item.company || 'Individual'} • {item.email}</div>
+                          </td>
+                          <td className="py-3 px-3 font-medium text-slate-700 dark:text-slate-300">{item.serviceNeeded}</td>
+                          <td className="py-3 px-3">
+                            <div className="font-mono text-slate-800 dark:text-slate-200">{item.preferredDate}</div>
+                            <div className="text-[10px] text-slate-400 uppercase">{item.preferredTime}</div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="inline-block text-[10px] font-mono px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase">
+                              {item.consultationMethod || 'virtual'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              item.status === 'pending' ? 'bg-amber-500/20 text-amber-600 border border-amber-500/30' :
+                              item.status === 'approved' ? 'bg-indigo-500/20 text-indigo-600 border border-indigo-500/30' :
+                              item.status === 'completed' ? 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30' :
+                              'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              onClick={() => { setSelectedConsultation(item); setActiveTab('consultations'); }}
+                              className="px-2.5 py-1 bg-[#0A1D37] hover:bg-[#071426] text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                            >
+                              Manage
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 2: CONSULTATION BOOKING MANAGEMENT & CALENDAR */}
+          {activeTab === 'consultations' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              
+              {/* Header & Controls */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Consultation Booking & Calendar Hub</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Review, approve, reschedule, assign, and manage all corporate briefing appointments.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex bg-slate-200 dark:bg-slate-800 p-0.5">
+                    <button
+                      onClick={() => setConsultationViewMode('list')}
+                      className={`px-3 py-1 text-xs font-semibold cursor-pointer ${consultationViewMode === 'list' ? 'bg-[#0A1D37] text-white' : 'text-slate-600 dark:text-slate-400'}`}
+                    >
+                      Table List
+                    </button>
+                    <button
+                      onClick={() => setConsultationViewMode('calendar')}
+                      className={`px-3 py-1 text-xs font-semibold cursor-pointer ${consultationViewMode === 'calendar' ? 'bg-[#0A1D37] text-white' : 'text-slate-600 dark:text-slate-400'}`}
+                    >
+                      Calendar Grid
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => handleExportCSV('consultations')}
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-xs font-semibold text-[#0A1D37] dark:text-white flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Download className="h-3.5 w-3.5 text-[#C5A02E]" /> Export
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Bar */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs font-sans">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter Status:</span>
+                {['all', 'pending', 'approved', 'in_progress', 'completed', 'rescheduled', 'cancelled', 'archived'].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setStatusFilter(st)}
+                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider whitespace-nowrap cursor-pointer ${
+                      statusFilter === st ? 'bg-[#0A1D37] text-[#C5A02E] border border-[#C5A02E]/40' : 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    {st.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              {/* VIEW 1: TABLE LIST VIEW */}
+              {consultationViewMode === 'list' && (
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left font-sans text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-slate-700">
+                          <th className="py-3 px-3">Client Profile</th>
+                          <th className="py-3 px-3">Service Specialization</th>
+                          <th className="py-3 px-3">Scheduled Date</th>
+                          <th className="py-3 px-3">Method</th>
+                          <th className="py-3 px-3">Assigned Advisor</th>
+                          <th className="py-3 px-3">Status</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+                        {consultations
+                          .filter(c => statusFilter === 'all' || c.status === statusFilter)
+                          .map(item => (
+                            <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                              <td className="py-3.5 px-3">
+                                <div className="font-bold text-[#0A1D37] dark:text-white">{item.fullName}</div>
+                                <div className="text-[11px] text-gray-500 dark:text-slate-400">{item.company || 'Individual Client'} • {item.email}</div>
+                                {item.phone && <div className="text-[10px] text-slate-400 font-mono">{item.phone}</div>}
+                              </td>
+                              <td className="py-3.5 px-3 font-semibold text-slate-800 dark:text-slate-200">{item.serviceNeeded}</td>
+                              <td className="py-3.5 px-3 font-mono">
+                                <div className="text-slate-900 dark:text-white font-bold">{item.preferredDate}</div>
+                                <div className="text-[10px] text-slate-400 uppercase">{item.preferredTime}</div>
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono uppercase border border-slate-300 dark:border-slate-700">
+                                  {item.consultationMethod || 'virtual'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3 text-slate-600 dark:text-slate-300 text-[11px]">
+                                {item.assignedTo || 'Arthur Richards'}
+                              </td>
+                              <td className="py-3.5 px-3">
+                                <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                  item.status === 'pending' ? 'bg-amber-500/20 text-amber-600 border border-amber-500/30' :
+                                  item.status === 'approved' ? 'bg-indigo-500/20 text-indigo-600 border border-indigo-500/30' :
+                                  item.status === 'completed' ? 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30' :
+                                  item.status === 'rescheduled' ? 'bg-blue-500/20 text-blue-600 border border-blue-500/30' :
+                                  'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                }`}>
+                                  {item.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-3 text-right space-x-1.5">
+                                <button
+                                  onClick={() => setSelectedConsultation(item)}
+                                  className="px-2.5 py-1 bg-[#0A1D37] hover:bg-[#071426] text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                                >
+                                  Review
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteConsultation(item.id)}
+                                  className="p-1 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/30 cursor-pointer"
+                                  title="Delete Record"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 2: INTERACTIVE CALENDAR GRID */}
+              {consultationViewMode === 'calendar' && (
+                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-slate-800">
+                    <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white">Consultation Calendar Schedule (Interactive)</h3>
+                    <span className="text-xs font-mono text-slate-500">Upcoming Appointments</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-7 gap-2 text-center font-sans text-xs">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="p-2 bg-slate-100 dark:bg-slate-800 font-bold uppercase text-[10px] text-slate-500">
+                        {day}
                       </div>
                     ))}
+                    {Array.from({ length: 35 }).map((_, idx) => {
+                      const dayNum = (idx % 31) + 1;
+                      const dateStr = `2026-11-${dayNum < 10 ? '0' + dayNum : dayNum}`;
+                      const dayBookings = consultations.filter(c => c.preferredDate === dateStr);
+                      return (
+                        <div key={idx} className="min-h-24 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-2 text-left space-y-1">
+                          <span className="font-mono text-[10px] font-bold text-slate-400">{dayNum}</span>
+                          {dayBookings.map(b => (
+                            <button
+                              key={b.id}
+                              onClick={() => setSelectedConsultation(b)}
+                              className="w-full text-left p-1 bg-[#0A1D37] text-white text-[9px] truncate border-l-2 border-[#C5A02E] block hover:opacity-90 cursor-pointer"
+                            >
+                              {b.fullName.split(' ')[0]} - {b.serviceNeeded.substring(0, 10)}...
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+              )}
 
-                <div className="bg-[#F4F7F9]/50 border border-gray-200 p-6 rounded-none space-y-4 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h3 className="font-serif font-bold text-sm text-[#0A1D37] uppercase tracking-wider">Database Safeguard</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      All consultation inquiries, corporate messages, blog postings, and configurations are stored securely inside your sandbox environment filesystem (`server_data.json`). Download daily snapshot backups or restore database states instantly.
-                    </p>
-                  </div>
-                  <div className="flex gap-4 pt-4">
-                    <button onClick={handleBackupDownload} className="flex-1 bg-white border border-gray-300 hover:border-[#C5A02E] hover:text-[#C5A02E] px-4 py-2.5 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer">
-                      <Download className="h-4 w-4" /> Download Backup JSON
-                    </button>
-                    <label className="flex-1 bg-[#C5A02E] hover:bg-[#A68625] text-white px-4 py-2.5 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-center">
-                      <Upload className="h-4 w-4" /> Restore JSON DB
-                      <input type="file" accept=".json" onChange={handleRestoreUpload} className="hidden" />
-                    </label>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* CONSULTATIONS TAB */}
-          {activeTab === 'consultations' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Consultation Request Database</h2>
-                <span className="bg-[#C5A02E]/10 text-[#C5A02E] border border-[#C5A02E]/20 px-3 py-1 rounded-none text-xs font-sans">{consultations.length} total</span>
+          {/* TAB 3: CLIENT CRM DIRECTORY */}
+          {activeTab === 'crm_users' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Centralized Client CRM Directory</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Manage client profiles, lead statuses, communication logs, and consultation activity histories.</p>
+                </div>
+
+                <button
+                  onClick={() => handleExportCSV('users')}
+                  className="px-3.5 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Download className="h-4 w-4 text-[#C5A02E]" /> Export CRM Database
+                </button>
               </div>
 
-              <div className="bg-[#F4F7F9] border border-gray-200 rounded-none overflow-x-auto">
-                <table className="w-full text-left text-xs divide-y divide-slate-800">
-                  <thead className="bg-white text-slate-500 font-sans uppercase text-[10px]">
-                    <tr>
-                      <th className="px-6 py-4">Client Detail</th>
-                      <th className="px-6 py-4">Target Service</th>
-                      <th className="px-6 py-4">Appointment</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-850 text-gray-600">
-                    {consultations.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-sans">No consultations logged yet.</td>
+              {/* CRM Lead Filter Bar */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs font-sans">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Lead Filter:</span>
+                {['all', 'New Lead', 'Contacted', 'Awaiting Response', 'Consultation Scheduled', 'Consultation Completed', 'Converted', 'Closed'].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setLeadFilter(st)}
+                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider whitespace-nowrap cursor-pointer ${
+                      leadFilter === st ? 'bg-[#0A1D37] text-[#C5A02E] border border-[#C5A02E]/40' : 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+
+              {/* Users CRM Table */}
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left font-sans text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-slate-700">
+                        <th className="py-3 px-3">Client Identity</th>
+                        <th className="py-3 px-3">Corporation / Entity</th>
+                        <th className="py-3 px-3">Lead Status</th>
+                        <th className="py-3 px-3">Assigned Officer</th>
+                        <th className="py-3 px-3">History</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
                       </tr>
-                    ) : (
-                      consultations.map(c => (
-                        <tr key={c.id} className="hover:bg-gray-200/20 transition-colors">
-                          <td className="px-6 py-4 space-y-1">
-                            <p className="font-bold text-[#0A1D37]">{c.fullName}</p>
-                            <p className="text-[11px] font-sans text-gray-500">{c.email}</p>
-                            <p className="text-[11px] font-sans text-slate-450">{c.phone}</p>
-                            {c.company && <p className="text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded-none text-[#C5A02E] inline-block">{c.company}</p>}
-                          </td>
-                          <td className="px-6 py-4 font-sans font-medium text-[#C5A02E]">{c.serviceNeeded}</td>
-                          <td className="px-6 py-4 space-y-0.5">
-                            <p className="font-semibold text-[#0A1D37]">{c.preferredDate}</p>
-                            <p className="text-[10px] text-slate-500 font-sans uppercase">{c.preferredTime}</p>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-0.5 rounded-none text-[10px] font-sans uppercase border ${
-                              c.status === 'pending' ? 'bg-[#C5A02E]/10 text-[#C5A02E] border-[#C5A02E]/20 animate-pulse' :
-                              c.status === 'contacted' ? 'bg-sky-500/10 text-sky-500 border-sky-500/20' :
-                              'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                            }`}>
-                              {c.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {c.status !== 'contacted' && c.status !== 'completed' && (
-                                <button onClick={() => handleUpdateConsultationStatus(c.id, 'contacted')} className="bg-sky-500/10 text-sky-500 border border-sky-500/20 p-1.5 rounded-none hover:bg-sky-500 hover:text-[#0A1D37] transition-all cursor-pointer" title="Mark contacted">
-                                  <Check className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              {c.status !== 'completed' && (
-                                <button onClick={() => handleUpdateConsultationStatus(c.id, 'completed')} className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 p-1.5 rounded-none hover:bg-emerald-500 hover:text-[#0A1D37] transition-all cursor-pointer" title="Mark completed">
-                                  <Check className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              <button onClick={() => handleDeleteConsultation(c.id)} className="bg-rose-500/10 text-rose-500 border border-rose-500/20 p-1.5 rounded-none hover:bg-rose-500 hover:text-[#0A1D37] transition-all cursor-pointer">
-                                <Trash2 className="h-3.5 w-3.5" />
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+                      {users
+                        .filter(u => leadFilter === 'all' || u.leadStatus === leadFilter)
+                        .map(u => (
+                          <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="py-3.5 px-3">
+                              <div className="font-bold text-[#0A1D37] dark:text-white flex items-center gap-1.5">
+                                <User className="h-3.5 w-3.5 text-[#C5A02E]" /> {u.fullName}
+                              </div>
+                              <div className="text-[11px] text-gray-500 dark:text-slate-400">{u.email} • {u.phone || 'No phone'}</div>
+                            </td>
+                            <td className="py-3.5 px-3 font-medium text-slate-700 dark:text-slate-300">
+                              {u.company || 'Individual Client'}
+                            </td>
+                            <td className="py-3.5 px-3">
+                              <span className="inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-[#0A1D37] dark:text-white border border-slate-300 dark:border-slate-700">
+                                {u.leadStatus}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3 text-[#0A1D37] dark:text-slate-300 text-[11px]">
+                              {u.assignedAdmin || 'Arthur Richards'}
+                            </td>
+                            <td className="py-3.5 px-3">
+                              <span className="text-[11px] font-mono text-slate-500">
+                                {u.consultationCount || 0} Briefings | {u.totalSubmissions || 0} Submissions
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3 text-right space-x-1.5">
+                              <button
+                                onClick={() => setSelectedUser(u)}
+                                className="px-2.5 py-1 bg-[#0A1D37] hover:bg-[#071426] text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                              >
+                                View CRM Profile
                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* CONTACT MESSAGES TAB */}
-          {activeTab === 'messages' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Contact Message Dossier</h2>
-                <span className="bg-[#C5A02E]/10 text-[#C5A02E] border border-[#C5A02E]/20 px-3 py-1 rounded-none text-xs font-sans">{messages.length} total</span>
-              </div>
-
-              <div className="bg-[#F4F7F9] border border-gray-200 rounded-none overflow-x-auto">
-                <table className="w-full text-left text-xs divide-y divide-slate-800">
-                  <thead className="bg-white text-slate-500 font-sans uppercase text-[10px]">
-                    <tr>
-                      <th className="px-6 py-4">Sender</th>
-                      <th className="px-6 py-4">Subject</th>
-                      <th className="px-6 py-4">Received At</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-850 text-gray-600">
-                    {messages.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-sans">No contact form messages logged.</td>
-                      </tr>
-                    ) : (
-                      messages.map(m => (
-                        <tr key={m.id} className="hover:bg-gray-200/20 transition-colors">
-                          <td className="px-6 py-4 space-y-1">
-                            <p className="font-bold text-[#0A1D37]">{m.fullName}</p>
-                            <p className="text-[11px] font-sans text-gray-500">{m.email}</p>
-                            <p className="text-[11px] font-sans text-slate-450">{m.phone}</p>
-                          </td>
-                          <td className="px-6 py-4 font-medium text-[#0A1D37] max-w-[200px] truncate">{m.subject}</td>
-                          <td className="px-6 py-4 font-sans text-slate-500">{new Date(m.createdAt).toLocaleDateString()}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-0.5 rounded-none text-[10px] font-sans uppercase border ${
-                              m.status === 'unread' ? 'bg-[#C5A02E]/10 text-[#C5A02E] border-[#C5A02E]/20 animate-pulse' : 'bg-white text-slate-500 border-gray-200'
-                            }`}>
-                              {m.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => setReadingMessage(m)} className="bg-[#C5A02E]/10 text-[#C5A02E] border border-[#C5A02E]/20 p-1.5 rounded-none hover:bg-[#C5A02E] hover:text-white transition-all cursor-pointer" title="Read message">
-                                <Eye className="h-3.5 w-3.5" />
+                              <button
+                                onClick={() => { setEmailRecipient({ email: u.email, name: u.fullName }); setIsEmailModalOpen(true); }}
+                                className="p-1 bg-[#C5A02E] text-white hover:bg-[#A68625] cursor-pointer"
+                                title="Send Email"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
                               </button>
-                              {m.status === 'unread' && (
-                                <button onClick={() => handleUpdateMessageStatus(m.id, 'read')} className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 p-1.5 rounded-none hover:bg-emerald-500 hover:text-[#0A1D37] transition-all cursor-pointer" title="Mark Read">
-                                  <Check className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              <button onClick={() => handleDeleteMessage(m.id)} className="bg-rose-500/10 text-rose-500 border border-rose-500/20 p-1.5 rounded-none hover:bg-rose-500 hover:text-[#0A1D37] transition-all cursor-pointer">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* NEWSLETTER SUBSCRIBERS */}
-          {activeTab === 'subscribers' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Newsletter Mailing List</h2>
-                <span className="bg-[#C5A02E]/10 text-[#C5A02E] border border-[#C5A02E]/20 px-3 py-1 rounded-none text-xs font-sans">{subscribers.length} total subscribers</span>
-              </div>
-
-              <div className="bg-[#F4F7F9] border border-gray-200 rounded-none max-w-xl overflow-hidden shadow-xl">
-                <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center text-xs font-sans text-gray-500">
-                  <span>Registered Emails</span>
-                  <button onClick={() => {
-                    const emails = subscribers.map(s => s.email).join('\n');
-                    navigator.clipboard.writeText(emails);
-                    toastSuccess("All email addresses copied to clipboard!", "Clipboard Copied");
-                  }} className="text-[#C5A02E] hover:underline">Copy All Addresses</button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="divide-y divide-slate-850 max-h-[400px] overflow-y-auto">
-                  {subscribers.length === 0 ? (
-                    <p className="p-8 text-center text-slate-500 font-sans text-xs">No email subscribers registered.</p>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 4: CONSULTATION DRAFTS & INCOMPLETE FORMS */}
+          {activeTab === 'drafts' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="pb-4 border-b border-gray-300 dark:border-slate-800">
+                <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Consultation Drafts & Progress Monitor</h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Track prospective clients who started completing consultation briefing forms but have not yet finalized submission.</p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left font-sans text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-slate-700">
+                        <th className="py-3 px-3">Visitor Name / Email</th>
+                        <th className="py-3 px-3">Specialization Selected</th>
+                        <th className="py-3 px-3">Completed Fields</th>
+                        <th className="py-3 px-3">Last Active</th>
+                        <th className="py-3 px-3">Draft Status</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+                      {drafts.length === 0 ? (
+                        <tr><td colSpan={6} className="py-8 text-center text-gray-400">No active consultation drafts in progress.</td></tr>
+                      ) : (
+                        drafts.map(d => (
+                          <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="py-3.5 px-3">
+                              <div className="font-bold text-[#0A1D37] dark:text-white">{d.fullName}</div>
+                              <div className="text-[11px] text-gray-500 font-mono">{d.email}</div>
+                            </td>
+                            <td className="py-3.5 px-3 font-semibold">{d.serviceNeeded}</td>
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-[#C5A02E]">{d.completedFieldsCount || 4} / 8</span>
+                                <div className="w-20 bg-gray-200 dark:bg-slate-800 h-1.5">
+                                  <div className="bg-[#C5A02E] h-1.5" style={{ width: `${((d.completedFieldsCount || 4)/8)*100}%` }}></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-3 font-mono text-[11px] text-slate-500">
+                              {d.lastTouchedAt?.split('T')[0]}
+                            </td>
+                            <td className="py-3.5 px-3">
+                              <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-600 font-bold text-[10px] uppercase">
+                                {d.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3 text-right">
+                              <button
+                                onClick={() => { setEmailRecipient({ email: d.email, name: d.fullName }); setIsEmailModalOpen(true); }}
+                                className="px-2.5 py-1 bg-[#0A1D37] hover:bg-[#071426] text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                              >
+                                Send Reminder Email
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: CENTRALIZED SUBMISSIONS CENTER */}
+          {activeTab === 'submissions' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Centralized Submissions & Inquiries</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">All contact messages, consultation briefs, and recruitment applications in one location.</p>
+                </div>
+              </div>
+
+              {/* Submissions Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs font-sans">
+                {['all', 'messages', 'applications', 'subscribers'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setSubmissionFilter(t)}
+                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider cursor-pointer ${
+                      submissionFilter === t ? 'bg-[#0A1D37] text-[#C5A02E] border border-[#C5A02E]/40' : 'bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 text-slate-600'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Contact Messages Column */}
+                {(submissionFilter === 'all' || submissionFilter === 'messages') && (
+                  <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm">
+                    <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white mb-3 pb-2 border-b">
+                      Contact Inquiries ({messages.length})
+                    </h3>
+                    <div className="space-y-3 max-h-96 overflow-y-auto font-sans text-xs">
+                      {messages.map(m => (
+                        <div key={m.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
+                          <div className="flex justify-between text-[10px] text-[#C5A02E] font-bold">
+                            <span>{m.fullName}</span>
+                            <span>{m.createdAt.split('T')[0]}</span>
+                          </div>
+                          <p className="font-bold text-[#0A1D37] dark:text-white mt-1">{m.subject}</p>
+                          <p className="text-slate-600 dark:text-slate-300 text-[11px] mt-1 line-clamp-2">{m.message}</p>
+                          <div className="mt-2 text-right">
+                            <button
+                              onClick={() => setSelectedSubmission({ type: 'message', data: m })}
+                              className="px-2 py-0.5 bg-[#0A1D37] text-white text-[10px] font-bold uppercase cursor-pointer"
+                            >
+                              Read Full
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Applications Column */}
+                {(submissionFilter === 'all' || submissionFilter === 'applications') && (
+                  <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm">
+                    <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white mb-3 pb-2 border-b">
+                      Recruitment Applications ({applications.length})
+                    </h3>
+                    <div className="space-y-3 max-h-96 overflow-y-auto font-sans text-xs">
+                      {applications.map(a => (
+                        <div key={a.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
+                          <div className="flex justify-between text-[10px] text-[#C5A02E] font-bold">
+                            <span>{a.fullName}</span>
+                            <span>{a.createdAt.split('T')[0]}</span>
+                          </div>
+                          <p className="font-bold text-[#0A1D37] dark:text-white mt-1">Position: {a.jobTitle}</p>
+                          <p className="text-slate-600 dark:text-slate-300 text-[11px] mt-1">Resume: {a.resumeUrl}</p>
+                          <div className="mt-2 text-right">
+                            <button
+                              onClick={() => setSelectedSubmission({ type: 'application', data: a })}
+                              className="px-2 py-0.5 bg-[#0A1D37] text-white text-[10px] font-bold uppercase cursor-pointer"
+                            >
+                              Inspect Record
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: EMAIL DISPATCHER & COMMUNICATIONS */}
+          {activeTab === 'communications' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Corporate Communication Center</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Transmit official executive correspondence, appointment notices, and follow-up emails directly to clients.</p>
+                </div>
+
+                <button
+                  onClick={() => { setEmailRecipient({ email: '', name: '' }); setIsEmailModalOpen(true); }}
+                  className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Send className="h-4 w-4 text-[#C5A02E]" /> Compose Email Notice
+                </button>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm p-6">
+                <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white mb-4 pb-2 border-b">Communication History Log</h3>
+                
+                <div className="space-y-3 font-sans text-xs">
+                  {communications.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No outward corporate emails logged yet.</p>
                   ) : (
-                    subscribers.map((sub, i) => (
-                      <div key={sub.id} className="p-4 flex items-center justify-between text-xs hover:bg-gray-200/10 font-sans">
-                        <span className="text-[#0A1D37] font-semibold">{i + 1}. {sub.email}</span>
-                        <span className="text-slate-500 text-[10px]">{new Date(sub.createdAt).toLocaleDateString()}</span>
+                    communications.map(c => (
+                      <div key={c.id} className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+                        <div className="flex justify-between items-center text-[10px] text-[#C5A02E] font-bold">
+                          <span>TO: {c.userName} ({c.userEmail})</span>
+                          <span>{c.sentAt.split('T')[0]}</span>
+                        </div>
+                        <p className="font-bold text-[#0A1D37] dark:text-white text-xs">Subject: {c.subject}</p>
+                        <p className="text-slate-600 dark:text-slate-300 text-xs whitespace-pre-wrap">{c.message}</p>
+                        <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-800 mt-2">
+                          Template: {c.templateUsed} | Sender: {c.senderAdmin}
+                        </div>
                       </div>
                     ))
                   )}
@@ -837,51 +1763,146 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             </div>
           )}
 
-          {/* BLOGS CMS TAB */}
-          {activeTab === 'blogs' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Blog Insight CMS</h2>
+          {/* TAB 7: FOLLOW-UP SCHEDULER */}
+          {activeTab === 'followups' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Follow-Up Task Scheduler</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Schedule administrative reminders to contact clients after consultation briefings.</p>
+                </div>
+
                 <button
-                  onClick={() => {
-                    setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richard V. Henderson, Managing Partner', readTime: '5 min read' });
-                    setIsBlogFormOpen(true);
-                  }}
-                  className="bg-[#C5A02E] hover:bg-[#A68625] text-white px-4 py-2 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => setIsFollowupModalOpen(true)}
+                  className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
                 >
-                  <Plus className="h-4 w-4" /> CREATE PUBLICATION
+                  <Plus className="h-4 w-4 text-[#C5A02E]" /> Schedule Follow-Up
                 </button>
               </div>
 
-              {/* Blogs List */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {blogs.map(blog => (
-                  <div key={blog.id} className="bg-[#F4F7F9] border border-gray-200 rounded-none p-5 flex flex-col justify-between space-y-4 shadow-xl">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start gap-4">
-                        <span className="text-[10px] text-[#C5A02E] font-sans uppercase tracking-wider">{blog.category}</span>
-                        <span className="text-[10px] text-slate-500 font-sans">{blog.date}</span>
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm p-6">
+                <div className="space-y-3 font-sans text-xs">
+                  {followups.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No scheduled follow-up tasks.</p>
+                  ) : (
+                    followups.map(f => (
+                      <div key={f.id} className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 text-[10px] text-[#C5A02E] font-bold">
+                            <Clock className="h-3.5 w-3.5" /> Due Date: {f.scheduledDate} at {f.scheduledTime}
+                          </div>
+                          <p className="font-bold text-[#0A1D37] dark:text-white text-sm mt-1">{f.userName} ({f.userEmail})</p>
+                          <p className="text-slate-600 dark:text-slate-300 text-xs mt-1">{f.note}</p>
+                        </div>
+
+                        <div>
+                          {f.status === 'completed' ? (
+                            <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-600 font-bold text-[10px] uppercase">Completed</span>
+                          ) : (
+                            <button
+                              onClick={() => handleMarkFollowupDone(f.id)}
+                              className="px-3 py-1.5 bg-[#0A1D37] hover:bg-[#071426] text-white text-[10px] font-bold uppercase cursor-pointer"
+                            >
+                              Mark Completed
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <h4 className="font-serif font-bold text-[#0A1D37] line-clamp-1">{blog.title}</h4>
-                      <p className="text-gray-500 text-xs line-clamp-2 leading-relaxed">{blog.shortDesc}</p>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 8: LIVE SUPPORT CHAT INBOX */}
+          {activeTab === 'support_chat' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <SupportInbox />
+            </div>
+          )}
+
+          {/* TAB 9: WEBSITE CONTENT & FAQS */}
+          {activeTab === 'content' && settings && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="pb-4 border-b border-gray-300 dark:border-slate-800">
+                <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Website Content & FAQ Management</h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Configure corporate messaging, hero headlines, about copy, and categorized FAQs.</p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm space-y-4">
+                <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white">Hero Section Copy</h3>
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase">Hero Headline</label>
+                  <input
+                    type="text"
+                    value={settings.content?.heroHeadline || ''}
+                    onChange={(e) => setSettings({ ...settings, content: { ...settings.content, heroHeadline: e.target.value } })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-gray-500 uppercase">Hero Subheadline</label>
+                  <textarea
+                    rows={2}
+                    value={settings.content?.heroSubheadline || ''}
+                    onChange={(e) => setSettings({ ...settings, content: { ...settings.content, heroSubheadline: e.target.value } })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white mt-1"
+                  />
+                </div>
+
+                <button
+                  onClick={async () => {
+                    await fetch('/api/settings', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify(settings)
+                    });
+                    toastSuccess('Website parameters updated.', 'Saved');
+                  }}
+                  className="px-4 py-2 bg-[#0A1D37] text-white font-bold text-xs uppercase cursor-pointer"
+                >
+                  Save Content Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 10: BLOGS */}
+          {activeTab === 'blogs' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between pb-4 border-b">
+                <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Market Insights & Blog Editor</h2>
+                <button
+                  onClick={() => { setIsBlogFormOpen(true); setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richards Realty Advisory', readTime: '5 min read' }); }}
+                  className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase cursor-pointer"
+                >
+                  + New Publication
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {blogs.map(b => (
+                  <div key={b.id} className="bg-white dark:bg-slate-900 border p-4 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-[#C5A02E] uppercase">{b.category}</span>
+                      <h4 className="font-bold text-[#0A1D37] dark:text-white text-sm mt-1">{b.title}</h4>
+                      <p className="text-slate-500 text-xs mt-1 line-clamp-2">{b.shortDesc}</p>
                     </div>
-                    <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
-                      <span className="text-[10px] text-slate-500 font-sans">By {blog.author.split(',')[0]}</span>
-                      <div className="flex gap-2">
+                    <div className="mt-4 pt-2 border-t flex justify-between items-center text-xs">
+                      <span className="text-slate-400">{b.date}</span>
+                      <div className="space-x-2">
                         <button
-                          onClick={() => {
-                            setBlogFormData({ ...blog });
-                            setIsBlogFormOpen(true);
-                          }}
-                          className="p-1.5 bg-white hover:bg-gray-200 text-slate-450 hover:text-[#0A1D37] rounded-none border border-gray-300 transition-colors cursor-pointer"
+                          onClick={() => { setBlogFormData(b as any); setIsBlogFormOpen(true); }}
+                          className="text-indigo-600 font-bold hover:underline cursor-pointer"
                         >
-                          <Edit2 className="h-3.5 w-3.5" />
+                          Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteBlog(blog.id)}
-                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-[#0A1D37] rounded-none border border-rose-500/20 transition-colors cursor-pointer"
+                          onClick={() => handleDeleteBlog(b.id)}
+                          className="text-rose-600 font-bold hover:underline cursor-pointer"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
                         </button>
                       </div>
                     </div>
@@ -891,1214 +1912,1155 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             </div>
           )}
 
-          {/* TEAM CMS TAB */}
+          {/* TAB 13: EXECUTIVE OFFICERS */}
           {activeTab === 'team' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Personnel CMS</h2>
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Executive Officers & Personnel</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Manage the corporate leadership profiles displayed on the Executive Advisory page.</p>
+                </div>
                 <button
                   onClick={() => {
                     setTeamFormData({ id: '', name: '', position: '', bio: '', image: '', linkedin: '', email: '' });
                     setIsTeamFormOpen(true);
                   }}
-                  className="bg-[#C5A02E] hover:bg-[#A68625] text-white px-4 py-2 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
                 >
-                  <Plus className="h-4 w-4" /> ADD TEAM MEMBER
+                  <Plus className="h-4 w-4 text-[#C5A02E]" /> Register Personnel
                 </button>
               </div>
 
-              {/* Team list */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {team.map(member => (
-                  <div key={member.id} className="bg-[#F4F7F9] border border-gray-200 rounded-none p-5 flex gap-4 items-start shadow-xl">
-                    <img src={member.image} alt={member.name} className="h-16 w-16 rounded-none object-cover border border-gray-200 bg-white shrink-0" referrerPolicy="no-referrer" />
-                    <div className="space-y-2 flex-grow overflow-hidden">
-                      <div className="space-y-0.5">
-                        <h4 className="font-serif font-bold text-[#0A1D37] text-sm leading-tight truncate">{member.name}</h4>
-                        <p className="text-[11px] text-[#C5A02E] font-sans tracking-wide leading-tight truncate">{member.position}</p>
-                      </div>
-                      <p className="text-slate-450 text-[11px] line-clamp-2 leading-relaxed">{member.bio}</p>
-                      <div className="pt-2 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-500 font-sans truncate max-w-[120px]">{member.email}</span>
-                        <div className="flex gap-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {team.length === 0 ? (
+                  <div className="col-span-full py-12 text-center bg-white dark:bg-slate-900 border border-dashed border-gray-300 dark:border-slate-800">
+                    <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">No executive profiles registered.</p>
+                  </div>
+                ) : (
+                  team.map(member => (
+                    <div key={member.id} className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 overflow-hidden flex flex-col">
+                      <div className="aspect-square bg-gray-100 dark:bg-slate-800 relative group">
+                        {member.image ? (
+                          <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <User className="h-16 w-16" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-[#0A1D37]/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                           <button
-                            onClick={() => {
-                              setTeamFormData({ ...member });
-                              setIsTeamFormOpen(true);
-                            }}
-                            className="p-1 bg-white hover:bg-gray-200 text-gray-500 hover:text-[#0A1D37] rounded-none border border-gray-300 cursor-pointer"
+                            onClick={() => { setTeamFormData(member); setIsTeamFormOpen(true); }}
+                            className="p-2 bg-white text-[#0A1D37] hover:text-[#C5A02E] transition-colors"
+                            title="Edit Profile"
                           >
-                            <Edit2 className="h-3 w-3" />
+                            <Edit2 className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteTeam(member.id)}
-                            className="p-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-[#0A1D37] rounded-none border border-rose-500/20 cursor-pointer"
+                            className="p-2 bg-white text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Remove Profile"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
                       </div>
+                      <div className="p-4 flex-1">
+                        <h4 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">{member.name}</h4>
+                        <p className="text-[11px] font-bold text-[#C5A02E] uppercase tracking-wider mb-2">{member.position}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3">{member.bio}</p>
+                      </div>
+                      <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border-t border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {member.id.substring(0, 8)}</span>
+                        <div className="flex gap-2">
+                          {member.linkedin && <div className="w-5 h-5 bg-slate-200 dark:bg-slate-700 rounded-full" />}
+                          {member.email && <div className="w-5 h-5 bg-slate-200 dark:bg-slate-700 rounded-full" />}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
 
-          {/* MEDIA GALLERY TAB */}
+          {/* TAB 14: CORPORATE GALLERY */}
           {activeTab === 'gallery' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Media Library CMS</h2>
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Corporate Gallery & Visual Assets</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Curate the visual portfolio of corporate offices, advisory sessions, and premium property assets.</p>
+                </div>
                 <button
                   onClick={() => {
                     setGalleryFormData({ title: '', category: 'Office', image: '' });
                     setIsGalleryFormOpen(true);
                   }}
-                  className="bg-[#C5A02E] hover:bg-[#A68625] text-white px-4 py-2 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
                 >
-                  <Plus className="h-4 w-4" /> REGISTER GALLERY ASSET
+                  <Plus className="h-4 w-4 text-[#C5A02E]" /> Upload Asset
                 </button>
               </div>
 
-              {/* Gallery List */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-                {gallery.map(item => (
-                  <div key={item.id} className="bg-[#F4F7F9] border border-gray-200 rounded-none overflow-hidden flex flex-col justify-between shadow-xl group">
-                    <div className="h-32 w-full overflow-hidden bg-white relative">
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
-                      <span className="absolute top-2 left-2 bg-white/90 text-[#C5A02E] border border-gray-300 text-[8px] font-sans uppercase px-1.5 py-0.5 rounded-none">{item.category}</span>
-                    </div>
-                    <div className="p-3 space-y-2 flex-grow flex flex-col justify-between">
-                      <p className="text-[11px] font-sans font-semibold text-[#0A1D37] leading-tight line-clamp-1">{item.title}</p>
-                      <div className="flex justify-end pt-1">
-                        <button onClick={() => handleDeleteGallery(item.id)} className="p-1 text-rose-500 hover:bg-rose-500 hover:text-[#0A1D37] rounded-none transition-colors border border-rose-500/10 cursor-pointer text-xs flex items-center gap-1 font-sans uppercase tracking-wider">
-                          <Trash2 className="h-3 w-3" /> Delete
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {gallery.length === 0 ? (
+                  <div className="col-span-full py-12 text-center bg-white dark:bg-slate-900 border border-dashed border-gray-300 dark:border-slate-800">
+                    <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">No gallery assets available.</p>
+                  </div>
+                ) : (
+                  gallery.map(item => (
+                    <div key={item.id} className="relative aspect-[4/3] bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-800 group overflow-hidden">
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A1D37] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                        <p className="text-[10px] font-bold text-[#C5A02E] uppercase">{item.category}</p>
+                        <p className="text-xs font-bold text-white mb-2">{item.title}</p>
+                        <button
+                          onClick={() => handleDeleteGallery(item.id)}
+                          className="w-full py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-tighter transition-colors"
+                        >
+                          Remove Asset
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
 
-          {/* CAREERS TAB */}
+          {/* TAB 15: VACANCIES & RECRUITMENT */}
           {activeTab === 'careers' && (
-            <div className="space-y-8 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Careers Opportunity Manager</h2>
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-300 dark:border-slate-800">
+                <div>
+                  <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Vacancies & Recruitment</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Post and manage career opportunities within Richards Realty Advisory & Investment Hub.</p>
+                </div>
                 <button
                   onClick={() => {
                     setCareerFormData({ id: '', title: '', department: 'Investment Advisory', location: 'San Francisco, CA', type: 'Full-time', description: '', requirements: '' });
                     setIsCareerFormOpen(true);
                   }}
-                  className="bg-[#C5A02E] hover:bg-[#A68625] text-white px-4 py-2 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
                 >
-                  <Plus className="h-4 w-4" /> CREATE OPPORTUNITY
+                  <Plus className="h-4 w-4 text-[#C5A02E]" /> Post New Vacancy
                 </button>
               </div>
 
-              {/* Opportunity vacancies split with candidates */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                <div className="lg:col-span-7 space-y-4">
-                  <span className="text-xs text-[#0A1D37] font-bold uppercase tracking-wider block">Active Vacancies</span>
-                  <div className="space-y-4">
-                    {careers.map(job => (
-                      <div key={job.id} className="bg-[#F4F7F9] border border-gray-200 p-5 rounded-none flex justify-between gap-6 shadow-xl">
-                        <div className="space-y-1 overflow-hidden">
-                          <span className={`px-2 py-0.5 rounded-none text-[8px] font-sans border uppercase ${job.status === 'active' ? 'bg-[#C5A02E]/10 text-[#C5A02E] border-[#C5A02E]/10' : 'bg-white text-slate-500 border-gray-200'}`}>{job.status}</span>
-                          <h4 className="font-serif font-bold text-[#0A1D37] text-sm pt-1">{job.title}</h4>
-                          <p className="text-[11px] text-[#C5A02E] font-sans">{job.department} • {job.location}</p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => {
-                              setCareerFormData({
-                                id: job.id,
-                                title: job.title,
-                                department: job.department,
-                                location: job.location,
-                                type: job.type,
-                                description: job.description,
-                                requirements: job.requirements.join('\n')
-                              });
-                              setIsCareerFormOpen(true);
-                            }}
-                            className="p-1.5 bg-white hover:bg-gray-200 text-gray-500 hover:text-[#0A1D37] rounded-none border border-gray-300 cursor-pointer"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCareer(job.id)}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-[#0A1D37] rounded-none border border-rose-500/20 cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-5 space-y-4">
-                  <span className="text-xs text-[#0A1D37] font-bold uppercase tracking-wider block">Applicants Database</span>
-                  <div className="bg-[#F4F7F9] border border-gray-200 rounded-none overflow-hidden">
-                    <div className="divide-y divide-slate-850">
-                      {applications.length === 0 ? (
-                        <p className="p-8 text-center text-slate-500 font-sans text-xs">No job applications submitted yet.</p>
-                      ) : (
-                        applications.map(app => (
-                          <div key={app.id} className="p-4 hover:bg-gray-200/10 flex items-center justify-between text-xs font-sans">
-                            <div className="space-y-0.5 max-w-[70%]">
-                              <p className="font-bold text-[#0A1D37] truncate">{app.fullName}</p>
-                              <p className="text-[10px] text-[#C5A02E] font-sans truncate">{app.jobTitle}</p>
-                            </div>
-                            <button onClick={() => setReadingApplication(app)} className="bg-white hover:bg-gray-200 border border-gray-300 text-[#0A1D37] px-3 py-1.5 rounded-none text-[10px] uppercase font-semibold cursor-pointer">
-                              View Dossier
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SETTINGS TAB */}
-          
-          {activeTab === 'settings' && settings && (
-            <div className="space-y-6 max-w-5xl animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Corporate Parameter Settings</h2>
-                <div className="flex items-center gap-3">
-                  {settingsSuccess && <span className="text-xs text-emerald-500 font-sans">Parameters Saved!</span>}
-                  <button
-                    type="button"
-                    onClick={handleSaveSettings}
-                    disabled={isSettingsLoading}
-                    className="bg-[#C5A02E] hover:bg-[#A68625] disabled:bg-slate-800 text-white px-6 py-2 rounded-none text-xs font-bold transition-all cursor-pointer"
-                  >
-                    {isSettingsLoading ? "SAVING..." : "SAVE PARAMETERS"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Sub-Tabs for Settings */}
-              <div className="flex space-x-6 border-b border-gray-200 mb-6 overflow-x-auto pb-1">
-                {[
-                  { id: 'general', label: 'General & Social' },
-                  { id: 'styling', label: 'Styling & Brand' },
-                  { id: 'home', label: 'Home Page' },
-                  { id: 'about', label: 'About Page' },
-                  { id: 'mission', label: 'Mission Page' },
-                  { id: 'other', label: 'Other Pages' },
-                  { id: 'faqs', label: 'FAQs' },
-                  { id: 'legal', label: 'Legal Pages' }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setSettingsTab(tab.id)}
-                    className={`py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${settingsTab === tab.id ? 'border-[#C5A02E] text-[#0A1D37]' : 'border-transparent text-gray-400 hover:text-[#C5A02E]'}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {settingsTab === 'general' && (
-                  <>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">HQ Contact Credentials</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Corporate Name</label>
-                        <input
-                          type="text"
-                          value={settings.general.companyName}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, companyName: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Email Address</label>
-                        <input
-                          type="email"
-                          value={settings.general.email}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, email: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Phone Number</label>
-                        <input
-                          type="text"
-                          value={settings.general.phone}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, phone: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">WhatsApp Number (e.g. 14155552671)</label>
-                        <input
-                          type="text"
-                          value={settings.general.whatsappNumber || ''}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, whatsappNumber: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">HQ Address</label>
-                        <textarea
-                          rows={2}
-                          value={settings.general.address}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, address: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"
-                        ></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Operating Hours</label>
-                        <input
-                          type="text"
-                          value={settings.general.workingHours}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, workingHours: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Google Map IFrame URL</label>
-                        <textarea
-                          rows={3}
-                          value={settings.general.googleMapIframe}
-                          onChange={(e) => setSettings({ ...settings, general: { ...settings.general, googleMapIframe: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] font-mono text-[10px] focus:outline-none resize-none"
-                        ></textarea>
-                      </div>
-                    </div>
-
-                    <div className="space-y-8">
-                      <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                        <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">SEO Metadata</span>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Global Meta Title</label>
-                          <input
-                            type="text"
-                            value={settings.seo.metaTitle}
-                            onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, metaTitle: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Global Meta Description</label>
-                          <textarea
-                            rows={3}
-                            value={settings.seo.metaDescription}
-                            onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, metaDescription: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"
-                          ></textarea>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Open Graph Image URL</label>
-                          <input
-                            type="text"
-                            value={settings.seo.openGraphImage}
-                            onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, openGraphImage: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                        <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Digital Social Integrations</span>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">LinkedIn URL</label>
-                          <input
-                            type="text"
-                            value={settings.social.linkedin}
-                            onChange={(e) => setSettings({ ...settings, social: { ...settings.social, linkedin: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Twitter URL</label>
-                          <input
-                            type="text"
-                            value={settings.social.twitter}
-                            onChange={(e) => setSettings({ ...settings, social: { ...settings.social, twitter: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Facebook URL</label>
-                          <input
-                            type="text"
-                            value={settings.social.facebook}
-                            onChange={(e) => setSettings({ ...settings, social: { ...settings.social, facebook: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Instagram URL</label>
-                          <input
-                            type="text"
-                            value={settings.social.instagram}
-                            onChange={(e) => setSettings({ ...settings, social: { ...settings.social, instagram: e.target.value } })}
-                            className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {settingsTab === 'styling' && (
-                  <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4 md:col-span-2">
-                    <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Website Styling (Brand Identity)</span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Primary Color (Hex)</label>
-                        <div className="flex gap-2">
-                          <div className="w-8 h-8 border border-gray-300" style={{ backgroundColor: settings.styling?.primaryColor || '#0A1D37' }}></div>
-                          <input
-                            type="text"
-                            value={settings.styling?.primaryColor || '#0A1D37'}
-                            onChange={(e) => setSettings({ ...settings, styling: { ...settings.styling, primaryColor: e.target.value } })}
-                            className="flex-1 bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Accent Color (Hex)</label>
-                        <div className="flex gap-2">
-                          <div className="w-8 h-8 border border-gray-300" style={{ backgroundColor: settings.styling?.accentColor || '#C5A02E' }}></div>
-                          <input
-                            type="text"
-                            value={settings.styling?.accentColor || '#C5A02E'}
-                            onChange={(e) => setSettings({ ...settings, styling: { ...settings.styling, accentColor: e.target.value } })}
-                            className="flex-1 bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Background Color (Hex)</label>
-                        <div className="flex gap-2">
-                          <div className="w-8 h-8 border border-gray-300" style={{ backgroundColor: settings.styling?.backgroundColor || '#ffffff' }}></div>
-                          <input
-                            type="text"
-                            value={settings.styling?.backgroundColor || '#ffffff'}
-                            onChange={(e) => setSettings({ ...settings, styling: { ...settings.styling, backgroundColor: e.target.value } })}
-                            className="flex-1 bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Typography Font</label>
-                        <select
-                          value={settings.styling?.fontFamily || 'font-sans'}
-                          onChange={(e) => setSettings({ ...settings, styling: { ...settings.styling, fontFamily: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                        >
-                          <option value="font-sans">Modern (Sans-serif)</option>
-                          <option value="font-serif">Traditional (Serif)</option>
-                          <option value="font-mono">Technical (Monospace)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Component Borders</label>
-                        <select
-                          value={settings.styling?.borderRadius || 'rounded-none'}
-                          onChange={(e) => setSettings({ ...settings, styling: { ...settings.styling, borderRadius: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                        >
-                          <option value="rounded-none">Sharp Corners (0px)</option>
-                          <option value="rounded-sm">Slightly Rounded (2px)</option>
-                          <option value="rounded-md">Rounded (6px)</option>
-                          <option value="rounded-xl">Highly Rounded (12px)</option>
-                          <option value="rounded-full">Pill (Full)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Animation Style</label>
-                        <select
-                          value={settings.styling?.animationStyle || 'animate-in fade-in duration-200'}
-                          onChange={(e) => setSettings({ ...settings, styling: { ...settings.styling, animationStyle: e.target.value } })}
-                          className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                        >
-                          <option value="none">No Animations</option>
-                          <option value="animate-in fade-in duration-200">Subtle Fade</option>
-                          <option value="animate-in fade-in slide-in-from-bottom-4 duration-500">Slide Up</option>
-                          <option value="animate-in fade-in zoom-in-95 duration-300">Zoom In</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {settingsTab === 'home' && (
-                  <>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Hero Section</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Hero Headline</label>
-                        <input type="text" value={settings.content?.heroHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, heroHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Hero Subheadline</label>
-                        <textarea rows={3} value={settings.content?.heroSubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, heroSubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Hero Background Image</label>
-                        <input type="text" value={settings.content?.heroImage || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, heroImage: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                    </div>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Home - About Section</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">About Headline</label>
-                        <input type="text" value={settings.content?.aboutHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">About Text</label>
-                        <textarea rows={3} value={settings.content?.aboutText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">About Image URL</label>
-                        <input type="text" value={settings.content?.aboutImage || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutImage: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                    </div>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Home - Services Section</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Services Headline</label>
-                        <input type="text" value={settings.content?.servicesHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, servicesHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Services Subheadline</label>
-                        <textarea rows={3} value={settings.content?.servicesSubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, servicesSubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                    </div>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Home - Mission & Team</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Mission Headline</label>
-                        <input type="text" value={settings.content?.missionHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Mission Text</label>
-                        <textarea rows={3} value={settings.content?.missionText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5 mt-4">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Team Headline</label>
-                        <input type="text" value={settings.content?.teamHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, teamHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Team Subheadline</label>
-                        <textarea rows={3} value={settings.content?.teamSubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, teamSubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {settingsTab === 'about' && (
-                  <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4 md:col-span-2">
-                    <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">About Page Content</span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Main Headline</label>
-                          <input type="text" value={settings.content?.aboutPageHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Introductory Text</label>
-                          <textarea rows={3} value={settings.content?.aboutPageText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                        <div className="space-y-1.5 mt-4">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Story Headline</label>
-                          <input type="text" value={settings.content?.aboutPageStoryHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageStoryHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Story Text</label>
-                          <textarea rows={6} value={settings.content?.aboutPageStoryText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageStoryText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Message Headline</label>
-                          <input type="text" value={settings.content?.aboutPageMessageHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageMessageHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Message Text</label>
-                          <textarea rows={6} value={settings.content?.aboutPageMessageText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageMessageText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                        <div className="space-y-1.5 mt-4">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Message Author</label>
-                          <input type="text" value={settings.content?.aboutPageMessageAuthor || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, aboutPageMessageAuthor: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {settingsTab === 'mission' && (
-                  <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4 md:col-span-2">
-                    <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Mission Page Content</span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Core Mission Headline</label>
-                          <input type="text" value={settings.content?.missionCoreHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionCoreHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Core Mission Text</label>
-                          <textarea rows={3} value={settings.content?.missionCoreText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionCoreText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                        <div className="space-y-1.5 mt-4">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Vision Headline</label>
-                          <input type="text" value={settings.content?.missionVisionHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionVisionHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Vision Text</label>
-                          <textarea rows={3} value={settings.content?.missionVisionText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionVisionText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Approach Headline</label>
-                          <input type="text" value={settings.content?.missionApproachHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionApproachHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Approach Text</label>
-                          <textarea rows={3} value={settings.content?.missionApproachText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionApproachText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                        <div className="space-y-1.5 mt-4">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Commitment Headline</label>
-                          <input type="text" value={settings.content?.missionCommitmentHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionCommitmentHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Commitment Text</label>
-                          <textarea rows={3} value={settings.content?.missionCommitmentText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, missionCommitmentText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {settingsTab === 'other' && (
-                  <>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Gallery & Blog Pages</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Gallery Headline</label>
-                        <input type="text" value={settings.content?.galleryHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, galleryHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Gallery Subheadline</label>
-                        <textarea rows={2} value={settings.content?.gallerySubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, gallerySubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5 mt-4">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Blog Headline</label>
-                        <input type="text" value={settings.content?.blogHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, blogHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Blog Subheadline</label>
-                        <textarea rows={2} value={settings.content?.blogSubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, blogSubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                    </div>
-                    <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Careers & Contact Pages</span>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Careers Headline</label>
-                        <input type="text" value={settings.content?.careersHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, careersHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Careers Subheadline</label>
-                        <textarea rows={2} value={settings.content?.careersSubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, careersSubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5 mt-4">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Contact Headline</label>
-                        <input type="text" value={settings.content?.contactHeadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, contactHeadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Contact Subheadline</label>
-                        <textarea rows={2} value={settings.content?.contactSubheadline || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, contactSubheadline: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {settingsTab === 'legal' && (
-                  <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4 md:col-span-2">
-                    <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block border-b border-gray-200 pb-2">Legal Pages & Footer Content</span>
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Footer Text</label>
-                        <textarea rows={3} value={settings.content?.footerText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, footerText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Privacy Policy Text</label>
-                        <textarea rows={4} value={settings.content?.privacyPolicyText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, privacyPolicyText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Terms of Service Text</label>
-                        <textarea rows={4} value={settings.content?.termsOfServiceText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, termsOfServiceText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Cookie Policy Text</label>
-                        <textarea rows={3} value={settings.content?.cookiePolicyText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, cookiePolicyText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Disclaimer Text</label>
-                        <textarea rows={3} value={settings.content?.disclaimerText || ''} onChange={(e) => setSettings({ ...settings, content: { ...settings.content, disclaimerText: e.target.value } })} className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"></textarea>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {settingsTab === 'faqs' && (
-                  <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-4 md:col-span-2">
-                    <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                      <span className="text-xs text-[#C5A02E] font-bold uppercase tracking-wider block">Frequently Asked Questions</span>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          const newFaqs = [...(settings.content?.faqs || []), { q: 'New Question', a: 'Answer...' }];
-                          setSettings({ ...settings, content: { ...settings.content, faqs: newFaqs } });
-                        }}
-                        className="text-xs text-[#0A1D37] hover:text-[#C5A02E] font-bold cursor-pointer"
-                      >
-                        + ADD FAQ
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-6 pt-2">
-                      {settings.content?.faqs?.map((faq, idx) => (
-                        <div key={idx} className="space-y-2 border border-gray-200 p-4 bg-white relative">
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const newFaqs = settings.content!.faqs!.filter((_, i) => i !== idx);
-                              setSettings({ ...settings, content: { ...settings.content, faqs: newFaqs } });
-                            }}
-                            className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-xs font-bold cursor-pointer"
-                          >
-                            REMOVE
-                          </button>
-                          <div className="space-y-1.5 pr-16">
-                            <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Question {idx + 1}</label>
-                            <input
-                              type="text"
-                              value={faq.q}
-                              onChange={(e) => {
-                                const newFaqs = [...settings.content!.faqs!];
-                                newFaqs[idx].q = e.target.value;
-                                setSettings({ ...settings, content: { ...settings.content, faqs: newFaqs } });
-                              }}
-                              className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E]"
-                            />
-                          </div>
-                          <div className="space-y-1.5 pr-16">
-                            <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Answer</label>
-                            <textarea
-                              rows={2}
-                              value={faq.a}
-                              onChange={(e) => {
-                                const newFaqs = [...settings.content!.faqs!];
-                                newFaqs[idx].a = e.target.value;
-                                setSettings({ ...settings, content: { ...settings.content, faqs: newFaqs } });
-                              }}
-                              className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none focus:border-[#C5A02E] resize-none"
-                            ></textarea>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-{activeTab === 'logs' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Security Auditing Logs</h2>
-                <span className="text-xs text-slate-500 font-sans">Latest 500 actions registered</span>
-              </div>
-
-              <div className="bg-[#F4F7F9] border border-gray-200 rounded-none overflow-x-auto">
-                <table className="w-full text-left text-xs divide-y divide-slate-800 font-sans">
-                  <thead className="bg-white text-slate-500 uppercase text-[10px]">
+              <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse font-sans text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-gray-200 dark:border-slate-800">
                     <tr>
-                      <th className="px-6 py-4">Timestamp</th>
-                      <th className="px-6 py-4">Security Operation</th>
-                      <th className="px-6 py-4">Audit Details</th>
+                      <th className="py-3 px-4 font-bold text-[#0A1D37] dark:text-slate-300 uppercase tracking-wider">Position Title</th>
+                      <th className="py-3 px-4 font-bold text-[#0A1D37] dark:text-slate-300 uppercase tracking-wider">Department</th>
+                      <th className="py-3 px-4 font-bold text-[#0A1D37] dark:text-slate-300 uppercase tracking-wider">Location</th>
+                      <th className="py-3 px-4 font-bold text-[#0A1D37] dark:text-slate-300 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-850 text-gray-500">
-                    {logs.map(log => (
-                      <tr key={log.id} className="hover:bg-gray-200/10">
-                        <td className="px-6 py-3 text-slate-550 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
-                        <td className="px-6 py-3 font-semibold text-[#C5A02E]">{log.action}</td>
-                        <td className="px-6 py-3 text-[#0A1D37]">{log.details}</td>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                    {careers.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center text-gray-400">No active vacancies listed.</td>
                       </tr>
-                    ))}
+                    ) : (
+                      careers.map(job => (
+                        <tr key={job.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-4 px-4">
+                            <p className="font-bold text-[#0A1D37] dark:text-white">{job.title}</p>
+                            <span className="text-[10px] px-1.5 py-0.5 bg-[#C5A02E]/20 text-[#C5A02E] font-bold uppercase mt-1 inline-block">{job.type}</span>
+                          </td>
+                          <td className="py-4 px-4 text-slate-600 dark:text-slate-400">{job.department}</td>
+                          <td className="py-4 px-4 text-slate-600 dark:text-slate-400">{job.location}</td>
+                          <td className="py-4 px-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => { setCareerFormData(job); setIsCareerFormOpen(true); }}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 transition-colors"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCareer(job.id)}
+                                className="p-2 text-rose-600 hover:bg-rose-50 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* BACKUP RESTORE TAB */}
-          {activeTab === 'backup' && (
-            <div className="space-y-6 max-w-xl animate-in fade-in duration-200">
-              <h2 className="font-serif text-xl font-bold text-[#0A1D37] uppercase tracking-tight">Global System Restoration</h2>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Download a comprehensive database backup file in standard JSON format containing all corporate parameters, active job listing pipelines, personnel grids, gallery indices, consultations registry, and correspondence histories.
-              </p>
 
-              <div className="bg-[#F4F7F9] border border-gray-200 p-6 rounded-none space-y-6 shadow-xl">
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-[#0A1D37] uppercase font-sans tracking-wider block">Backup Export</span>
-                  <p className="text-[11px] text-slate-500">Generate and download a snapshot copy of the filesystem storage file instantly.</p>
-                  <button onClick={handleBackupDownload} className="bg-[#C5A02E] hover:bg-[#A68625] text-white text-xs font-bold py-2 px-4 rounded-none transition-all cursor-pointer">
-                    EXPORT FILESYSTEM DATA
-                  </button>
-                </div>
+          {/* TAB 11: SYSTEM LOGS */}
+          {activeTab === 'logs' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="pb-4 border-b">
+                <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">System Security & Audit Trail</h2>
+                <p className="text-xs text-gray-500">Comprehensive audit records of all administrative actions and security events.</p>
+              </div>
 
-                <div className="space-y-2 border-t border-gray-200 pt-6">
-                  <span className="text-xs font-semibold text-[#0A1D37] uppercase font-sans tracking-wider block">State Recovery</span>
-                  <p className="text-[11px] text-slate-500">Restore your dashboard from a previously generated backup JSON file. Drag and drop or browse below.</p>
-                  <label className="inline-flex items-center justify-center bg-white border border-gray-300 hover:border-[#C5A02E] text-[#0A1D37] hover:text-[#C5A02E] px-4 py-2 rounded-none text-xs font-bold transition-all cursor-pointer">
-                    UPLOAD AND RESTORE BACKUP
-                    <input type="file" accept=".json" onChange={handleRestoreUpload} className="hidden" />
-                  </label>
+              <div className="bg-white dark:bg-slate-900 border p-6 font-mono text-xs">
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {logs.map(l => (
+                    <div key={l.id} className="p-2 bg-slate-50 dark:bg-slate-800/50 border-b text-[11px]">
+                      <span className="text-slate-400 mr-3">[{l.timestamp.replace('T', ' ').substring(0, 19)}]</span>
+                      <span className="font-bold text-[#C5A02E] mr-3">{l.action}:</span>
+                      <span className="text-slate-700 dark:text-slate-200">{l.details}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
+
+          {/* TAB 12: SEO & SETTINGS */}
+          {activeTab === 'settings' && settings && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="pb-4 border-b">
+                <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Global SEO & Corporate Parameters</h2>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 border p-6 space-y-4 text-xs font-sans">
+                <div>
+                  <label className="font-bold uppercase text-[10px] text-gray-500">Company Legal Name</label>
+                  <input
+                    type="text"
+                    value={settings.general.companyName}
+                    onChange={(e) => setSettings({ ...settings, general: { ...settings.general, companyName: e.target.value } })}
+                    className="w-full border p-2 mt-1 bg-slate-50 dark:bg-slate-800 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold uppercase text-[10px] text-gray-500">SEO Meta Title</label>
+                  <input
+                    type="text"
+                    value={settings.seo.metaTitle}
+                    onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, metaTitle: e.target.value } })}
+                    className="w-full border p-2 mt-1 bg-slate-50 dark:bg-slate-800 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/settings', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify(settings)
+                    });
+                    toastSuccess('SEO & Corporate Settings updated.', 'Saved');
+                  }}
+                  className="px-4 py-2 bg-[#0A1D37] text-white font-bold text-xs uppercase cursor-pointer"
+                >
+                  Save Global Parameters
+                </button>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
-      {/* MODAL: READ MESSAGE POPUP */}
-      {readingMessage && (
-        <div className="fixed inset-0 z-55 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#F4F7F9] border border-gray-300 max-w-xl w-full p-6 rounded-none space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[9px] text-[#C5A02E] uppercase font-sans tracking-wider">Contact Form Record</span>
-                <h4 className="font-serif font-bold text-[#0A1D37] text-lg">{readingMessage.subject}</h4>
-              </div>
-              <button onClick={() => setReadingMessage(null)} className="text-gray-500 hover:text-[#0A1D37] p-1 rounded-full cursor-pointer">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="bg-white p-4 rounded-none border border-gray-200 text-xs space-y-1 font-sans">
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">From:</span> {readingMessage.fullName}</p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Email:</span> {readingMessage.email}</p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Phone:</span> {readingMessage.phone || "Not provided"}</p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Date:</span> {new Date(readingMessage.createdAt).toLocaleString()}</p>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs uppercase font-sans tracking-wider text-slate-500">Inquiry Body Message</p>
-              <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-sans">{readingMessage.message}</p>
-            </div>
-            <div className="pt-4 border-t border-slate-805 flex justify-end gap-2">
-              {readingMessage.status === 'unread' && (
+      {/* --- MODAL 1: CONSULTATION / RENTAL APPLICATION DETAIL & EXPORT DRAWER --- */}
+      {selectedConsultation && (() => {
+        const extractAttachmentUrl = (text: string, key: string) => {
+          if (!text) return null;
+          const match = text.match(new RegExp(`\\[${key}:\\s*(.*?)\\]`));
+          if (match && match[1] && match[1].startsWith('data:image')) {
+            return match[1];
+          }
+          return null;
+        };
+
+        const idFrontUrl = extractAttachmentUrl(selectedConsultation.message, 'ATTACHMENT_ID_FRONT');
+        const idBackUrl = extractAttachmentUrl(selectedConsultation.message, 'ATTACHMENT_ID_BACK');
+        const incomeUrl = extractAttachmentUrl(selectedConsultation.message, 'ATTACHMENT_INCOME');
+
+        return (
+          <div className="fixed inset-0 z-50 bg-[#0A1D37]/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto space-y-4 font-sans text-xs animate-in zoom-in-95 duration-200 print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0">
+              
+              {/* Structured Print Header (Visible strictly when printing) */}
+              <PrintHeader 
+                title={selectedConsultation.serviceNeeded === 'Residential Rental Application' || selectedConsultation.message?.includes('OFFICIAL RESIDENTIAL RENTAL APPLICATION')
+                  ? "Official Residential Rental Housing Application Record"
+                  : "Client Real Estate Advisory & Consultation Record"
+                }
+                subtitle={`Client / Applicant: ${selectedConsultation.fullName} • Entity: ${selectedConsultation.company || 'Individual'}`}
+                referenceNumber={selectedConsultation.refNumber || selectedConsultation.id}
+                documentType="Administrative Property Record"
+              />
+
+              <div className="flex justify-between items-start border-b pb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase font-bold text-[#C5A02E] font-mono">Record ID: {selectedConsultation.refNumber || selectedConsultation.id}</span>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                      Status: {selectedConsultation.status}
+                    </span>
+                  </div>
+                  <h3 className="font-serif font-bold text-xl text-[#0A1D37] dark:text-white">
+                    {selectedConsultation.serviceNeeded === 'Residential Rental Application' || selectedConsultation.message?.includes('OFFICIAL RESIDENTIAL RENTAL APPLICATION')
+                      ? 'Official Housing Application Record & Client Form Data'
+                      : 'Client Consultation Briefing Record'
+                    }
+                  </h3>
+                </div>
+                <div className="no-print flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    handleUpdateMessageStatus(readingMessage.id, 'read');
-                    setReadingMessage(null);
-                  }}
-                  className="bg-emerald-500 text-[#0A1D37] font-semibold text-xs py-2 px-4 rounded-none cursor-pointer hover:bg-emerald-600 transition-colors"
-                >
-                  Mark as Read
-                </button>
+                    onClick={(e) => {
+                      setIsPrintingRecord(true);
+                      handleImmediatePrint(e, () => setIsPrintingRecord(false));
+                      setTimeout(() => setIsPrintingRecord(false), 1500);
+                    }}
+                    disabled={isPrintingRecord}
+                    className="px-3 py-1.5 bg-[#0A1D37] hover:bg-slate-800 active:scale-[0.98] text-[#C5A02E] font-bold text-xs uppercase flex items-center gap-1.5 cursor-pointer shadow-sm border border-[#C5A02E]/30 disabled:opacity-80"
+                    title="Print Application Status (Instant PDF)"
+                  >
+                    {isPrintingRecord ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>Opening Print...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>Print Application Status</span>
+                      </>
+                    )}
+                  </button>
+                  <button onClick={() => setSelectedConsultation(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Fields Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 border text-xs">
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">Applicant / Client Name</p>
+                  <p className="font-bold text-[#0A1D37] dark:text-white">{selectedConsultation.fullName}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">Company / Entity</p>
+                  <p className="font-bold text-[#0A1D37] dark:text-white">{selectedConsultation.company || 'Individual Applicant'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">Email Address</p>
+                  <p className="font-mono text-slate-800 dark:text-slate-200">{selectedConsultation.email}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">Contact Phone</p>
+                  <p className="font-mono text-slate-800 dark:text-slate-200">{selectedConsultation.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">Service Category</p>
+                  <p className="font-bold text-[#C5A02E]">{selectedConsultation.serviceNeeded}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase font-bold">Submission Date</p>
+                  <p className="font-mono">{selectedConsultation.preferredDate} ({selectedConsultation.preferredTime || '10:00 AM'})</p>
+                </div>
+              </div>
+
+              {/* Complete Client Submitted Form Data Preview */}
+              {selectedConsultation.message && (
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Client Form Field Transmittal Record</p>
+                    <span className="text-[10px] text-[#C5A02E] font-semibold">Complete Unabridged Client Form Fields</span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-4 border text-xs text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto">
+                    {selectedConsultation.message}
+                  </div>
+                </div>
               )}
-              <button onClick={() => setReadingMessage(null)} className="bg-white border border-gray-300 text-[#0A1D37] px-4 py-2 rounded-none text-xs cursor-pointer">
-                Close
-              </button>
+
+              {/* Uploaded Document Attachments & Image Verification Gallery */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border space-y-3">
+                <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 pb-2">
+                  <p className="text-[10px] text-[#C5A02E] uppercase font-bold tracking-wider">
+                    Uploaded Document Attachments & Image Verification Gallery
+                  </p>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> 256-Bit Encrypted Files Verified
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Driver's License Front */}
+                  <div className="p-3 bg-white dark:bg-slate-900 border space-y-2 text-center">
+                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase">
+                      Driver's License (Front Side)
+                    </div>
+                    {idFrontUrl ? (
+                      <img
+                        src={idFrontUrl}
+                        alt="Driver License Front Side"
+                        className="w-full h-28 object-cover border shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(idFrontUrl, '_blank')}
+                      />
+                    ) : (
+                      <div className="h-28 bg-slate-100 dark:bg-slate-800 border-2 border-dashed flex flex-col items-center justify-center p-2 text-center text-slate-500">
+                        <Paperclip className="h-6 w-6 text-[#C5A02E] mb-1" />
+                        <span className="text-[10px] font-bold">Front ID Image Attached</span>
+                        <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono">Supporting File #1</span>
+                      </div>
+                    )}
+                    <span className="inline-block px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase">
+                      ID Front Verified
+                    </span>
+                  </div>
+
+                  {/* Driver's License Back */}
+                  <div className="p-3 bg-white dark:bg-slate-900 border space-y-2 text-center">
+                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase">
+                      Driver's License (Back Side)
+                    </div>
+                    {idBackUrl ? (
+                      <img
+                        src={idBackUrl}
+                        alt="Driver License Back Side"
+                        className="w-full h-28 object-cover border shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(idBackUrl, '_blank')}
+                      />
+                    ) : (
+                      <div className="h-28 bg-slate-100 dark:bg-slate-800 border-2 border-dashed flex flex-col items-center justify-center p-2 text-center text-slate-500">
+                        <Paperclip className="h-6 w-6 text-[#C5A02E] mb-1" />
+                        <span className="text-[10px] font-bold">Back ID Image Attached</span>
+                        <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono">Supporting File #2</span>
+                      </div>
+                    )}
+                    <span className="inline-block px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase">
+                      ID Back Verified
+                    </span>
+                  </div>
+
+                  {/* Proof of Income (Paystubs) */}
+                  <div className="p-3 bg-white dark:bg-slate-900 border space-y-2 text-center">
+                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase">
+                      Proof of Income (Paystubs)
+                    </div>
+                    {incomeUrl ? (
+                      <img
+                        src={incomeUrl}
+                        alt="Paystub Document"
+                        className="w-full h-28 object-cover border shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(incomeUrl, '_blank')}
+                      />
+                    ) : (
+                      <div className="h-28 bg-slate-100 dark:bg-slate-800 border-2 border-dashed flex flex-col items-center justify-center p-2 text-center text-slate-500">
+                        <FileText className="h-6 w-6 text-[#C5A02E] mb-1" />
+                        <span className="text-[10px] font-bold">Paystub Doc Attached</span>
+                        <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono">Supporting File #3</span>
+                      </div>
+                    )}
+                    <span className="inline-block px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase">
+                      Income Doc Verified
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions & Status Changes */}
+              <div className="space-y-3 pt-3 border-t">
+                <label className="text-[10px] font-bold text-gray-500 uppercase block">Update Administrative Record Status</label>
+                <div className="no-print grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    onClick={() => handleUpdateConsultation(selectedConsultation.id, { status: 'approved' })}
+                    className="py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase cursor-pointer"
+                  >
+                    Approve Application
+                  </button>
+                  <button
+                    onClick={() => handleUpdateConsultation(selectedConsultation.id, { status: 'completed' })}
+                    className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase cursor-pointer"
+                  >
+                    Mark Completed
+                  </button>
+                  <button
+                    onClick={() => handleUpdateConsultation(selectedConsultation.id, { status: 'rescheduled' })}
+                    className="py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] uppercase cursor-pointer"
+                  >
+                    Request Information
+                  </button>
+                  <button
+                    onClick={() => handleUpdateConsultation(selectedConsultation.id, { status: 'cancelled' })}
+                    className="py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase cursor-pointer"
+                  >
+                    Decline / Reject
+                  </button>
+                </div>
+              </div>
+
+              {/* Structured Print Footer (Visible strictly when printing) */}
+              <PrintFooter />
+
             </div>
+          </div>
+        );
+      })()}
+
+      {/* --- MODAL 1B: SELECTED SUBMISSION DETAIL & EXPORT MODAL --- */}
+      {selectedSubmission && (
+        <div className="fixed inset-0 z-50 bg-[#0A1D37]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4 font-sans text-xs animate-in zoom-in-95 duration-200 print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0">
+            
+            {/* Structured Print Header (Visible strictly when printing) */}
+            <PrintHeader 
+              title={selectedSubmission.type === 'message' ? "Client Contact Inquiry Record" : "Recruitment Candidate Record"}
+              subtitle={`Submitter: ${selectedSubmission.data.fullName} • Record ID: ${selectedSubmission.data.id || 'N/A'}`}
+              referenceNumber={selectedSubmission.data.id}
+              documentType="Administrative Corporate Record"
+            />
+
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#C5A02E]">Submission Category: {selectedSubmission.type.toUpperCase()}</span>
+                <h3 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">
+                  {selectedSubmission.type === 'message' ? 'Contact Inquiry Record' : 'Recruitment Application Record'}
+                </h3>
+              </div>
+              <div className="no-print flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    setIsPrintingRecord(true);
+                    handleImmediatePrint(e, () => setIsPrintingRecord(false));
+                    setTimeout(() => setIsPrintingRecord(false), 1500);
+                  }}
+                  disabled={isPrintingRecord}
+                  className="px-3 py-1.5 bg-[#0A1D37] hover:bg-slate-800 active:scale-[0.98] text-[#C5A02E] font-bold text-xs uppercase flex items-center gap-1.5 cursor-pointer border border-[#C5A02E]/30 disabled:opacity-80"
+                  title="Print Application Status (Instant PDF)"
+                >
+                  {isPrintingRecord ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Opening Print...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="h-3.5 w-3.5" />
+                      <span>Print Application Status</span>
+                    </>
+                  )}
+                </button>
+                <button onClick={() => setSelectedSubmission(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 border">
+              <div>
+                <span className="text-gray-500 uppercase font-bold text-[10px] block">Submitter Name</span>
+                <p className="font-bold text-slate-900 dark:text-white text-sm">{selectedSubmission.data.fullName}</p>
+              </div>
+              <div>
+                <span className="text-gray-500 uppercase font-bold text-[10px] block">Email / Contact</span>
+                <p className="font-mono text-slate-800 dark:text-slate-200">{selectedSubmission.data.email} | {selectedSubmission.data.phone || 'N/A'}</p>
+              </div>
+              {selectedSubmission.data.subject && (
+                <div>
+                  <span className="text-gray-500 uppercase font-bold text-[10px] block">Subject</span>
+                  <p className="font-bold text-[#C5A02E]">{selectedSubmission.data.subject}</p>
+                </div>
+              )}
+              {selectedSubmission.data.jobTitle && (
+                <div>
+                  <span className="text-gray-500 uppercase font-bold text-[10px] block">Target Position</span>
+                  <p className="font-bold text-[#C5A02E]">{selectedSubmission.data.jobTitle}</p>
+                </div>
+              )}
+              <div>
+                <span className="text-gray-500 uppercase font-bold text-[10px] block">Full Message Body / Submitted Details</span>
+                <p className="p-3 bg-white dark:bg-slate-900 border text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                  {selectedSubmission.data.message || selectedSubmission.data.coverLetter || 'No additional notes.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Structured Print Footer (Visible strictly when printing) */}
+            <PrintFooter />
+
           </div>
         </div>
       )}
 
-      {/* MODAL: READ APPLICATION POPUP */}
-      {readingApplication && (
-        <div className="fixed inset-0 z-55 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#F4F7F9] border border-gray-300 max-w-xl w-full p-6 rounded-none space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-start">
+      {/* --- MODAL 2: CRM USER PROFILE MODAL --- */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 bg-[#0A1D37]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto space-y-4 font-sans text-xs animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start border-b pb-3">
               <div>
-                <span className="text-[9px] text-[#C5A02E] uppercase font-sans tracking-wider">Candidate Profile Folder</span>
-                <h4 className="font-serif font-bold text-[#0A1D37] text-lg">{readingApplication.fullName}</h4>
+                <span className="text-[10px] uppercase font-bold text-[#C5A02E]">Client Profile Record</span>
+                <h3 className="font-serif font-bold text-xl text-[#0A1D37] dark:text-white">{selectedUser.fullName}</h3>
+                <p className="text-gray-500 text-xs">{selectedUser.email} • Registered {selectedUser.registrationDate?.split('T')[0]}</p>
               </div>
-              <button onClick={() => setReadingApplication(null)} className="text-gray-500 hover:text-[#0A1D37] p-1 rounded-full cursor-pointer">
+              <button onClick={() => setSelectedUser(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="bg-white p-4 rounded-none border border-gray-200 text-xs space-y-1 font-sans">
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Job Position:</span> {readingApplication.jobTitle}</p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Email:</span> {readingApplication.email}</p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Phone:</span> {readingApplication.phone}</p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Resume Attachment:</span> <span className="text-[#C5A02E] underline">{readingApplication.resumeUrl}</span></p>
-              <p className="text-slate-500"><span className="text-gray-600 font-semibold">Date Logged:</span> {new Date(readingApplication.createdAt).toLocaleString()}</p>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs uppercase font-sans tracking-wider text-slate-500">Applicant Cover Narrative</p>
-              <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-sans">{readingApplication.coverLetter || "Candidate did not submit a cover narrative."}</p>
-            </div>
-            <div className="pt-4 border-t border-slate-805 flex justify-end">
-              <button onClick={() => setReadingApplication(null)} className="bg-white border border-gray-300 text-[#0A1D37] px-5 py-2 rounded-none text-xs cursor-pointer">
-                Close Candidate Folder
-              </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 border space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">CRM Lead Status</label>
+                  <select
+                    value={selectedUser.leadStatus}
+                    onChange={(e) => handleUpdateUser(selectedUser.id, { leadStatus: e.target.value })}
+                    className="w-full bg-white dark:bg-slate-800 border p-2 text-xs font-bold text-[#0A1D37] dark:text-white cursor-pointer"
+                  >
+                    {['New Lead', 'Contacted', 'Awaiting Response', 'Consultation Scheduled', 'Consultation Completed', 'Converted', 'Closed'].map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Assigned Partner</label>
+                  <input
+                    type="text"
+                    value={selectedUser.assignedAdmin || ''}
+                    onChange={(e) => handleUpdateUser(selectedUser.id, { assignedAdmin: e.target.value })}
+                    className="w-full bg-white dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+
+                <button
+                  onClick={() => { setEmailRecipient({ email: selectedUser.email, name: selectedUser.fullName }); setIsEmailModalOpen(true); }}
+                  className="w-full py-2 bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Mail className="h-3.5 w-3.5 text-[#C5A02E]" /> Dispatch Client Email
+                </button>
+              </div>
+
+              <div className="md:col-span-2 space-y-3">
+                <h4 className="font-serif font-bold text-sm text-[#0A1D37] dark:text-white pb-1 border-b">Client Activity Timeline & Briefing Records</h4>
+                
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {selectedUser.consultations?.map((c: any) => (
+                    <div key={c.id} className="p-2.5 bg-slate-50 dark:bg-slate-800/50 border text-xs flex justify-between">
+                      <div>
+                        <span className="font-bold text-[#C5A02E]">{c.serviceNeeded}</span>
+                        <p className="text-[10px] text-gray-500">Date: {c.preferredDate} ({c.preferredTime})</p>
+                      </div>
+                      <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-600 font-bold text-[10px] uppercase h-fit">{c.status}</span>
+                    </div>
+                  ))}
+
+                  {selectedUser.activities?.map((a: any) => (
+                    <div key={a.id} className="p-2 border-b text-[11px]">
+                      <span className="font-bold text-[#0A1D37] dark:text-white">{a.action}:</span> <span className="text-slate-600 dark:text-slate-300">{a.details}</span>
+                      <span className="text-[9px] text-slate-400 block">{a.timestamp?.split('T')[0]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: BLOG CMS FORM OVERLAY */}
-      {isBlogFormOpen && (
-        <div className="fixed inset-0 z-55 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleBlogSubmit} className="bg-[#F4F7F9] border border-gray-300 max-w-2xl w-full p-6 rounded-none space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <h4 className="font-serif font-bold text-[#0A1D37] text-base uppercase tracking-tight">{blogFormData.id ? 'Edit Insight Publication' : 'Create Insight Publication'}</h4>
-              <button type="button" onClick={() => setIsBlogFormOpen(false)} className="text-gray-500 hover:text-[#0A1D37] cursor-pointer"><X className="h-5 w-5" /></button>
+      {/* --- MODAL 3: DIRECT EMAIL DISPATCHER MODAL --- */}
+      {isEmailModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#0A1D37]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 max-w-lg w-full space-y-4 font-sans text-xs animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">Compose Corporate Email Correspondence</h3>
+              <button onClick={() => setIsEmailModalOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Publication Title</label>
+            <form onSubmit={handleSendEmail} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Recipient Email</label>
+                <input
+                  type="email"
+                  required
+                  value={emailRecipient.email}
+                  onChange={(e) => setEmailRecipient({ ...emailRecipient, email: e.target.value })}
+                  placeholder="client@company.com"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Email Subject</label>
+                <input
+                  type="text"
+                  required
+                  value={emailForm.subject}
+                  onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+                  placeholder="e.g. Richards Realty Advisory Consultation Confirmation"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Message Body</label>
+                <textarea
+                  rows={5}
+                  required
+                  value={emailForm.message}
+                  onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                  placeholder="Enter official briefing correspondence..."
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Send className="h-4 w-4 text-[#C5A02E]" /> Transmit Email Notice
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 4: FOLLOW-UP SCHEDULER MODAL --- */}
+      {isFollowupModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#0A1D37]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 max-w-md w-full space-y-4 font-sans text-xs animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">Schedule Administrative Follow-Up</h3>
+              <button onClick={() => setIsFollowupModalOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleScheduleFollowup} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Client Email</label>
+                <input
+                  type="email"
+                  required
+                  value={followupForm.userEmail}
+                  onChange={(e) => setFollowupForm({ ...followupForm, userEmail: e.target.value })}
+                  placeholder="client@company.com"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Target Date</label>
+                <input
+                  type="date"
+                  required
+                  value={followupForm.scheduledDate}
+                  onChange={(e) => setFollowupForm({ ...followupForm, scheduledDate: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Follow-Up Note / Task Objective</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={followupForm.note}
+                  onChange={(e) => setFollowupForm({ ...followupForm, note: e.target.value })}
+                  placeholder="Call client regarding RICS valuation underwriting progress..."
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase cursor-pointer"
+              >
+                Schedule Follow-Up Task
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 5: BLOG FORM MODAL --- */}
+      {isBlogFormOpen && (
+        <div className="fixed inset-0 z-50 bg-[#0A1D37]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 max-w-xl w-full space-y-4 font-sans text-xs animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">{blogFormData.id ? 'Edit Market Insight' : 'New Market Insight Article'}</h3>
+              <button onClick={() => setIsBlogFormOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBlogSubmit} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Article Title</label>
                 <input
                   type="text"
                   required
                   value={blogFormData.title}
                   onChange={(e) => setBlogFormData({ ...blogFormData, title: e.target.value })}
-                  placeholder="e.g. Q3 Capital Markets Report"
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Sub-Category</label>
-                <select
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Category</label>
+                <input
+                  type="text"
+                  required
                   value={blogFormData.category}
                   onChange={(e) => setBlogFormData({ ...blogFormData, category: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                >
-                  <option value="Market Insights">Market Insights</option>
-                  <option value="Valuation & Advisory">Valuation & Advisory</option>
-                  <option value="Corporate Solutions">Corporate Solutions</option>
-                  <option value="Regulatory Updates">Regulatory Updates</option>
-                </select>
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Author Credit</label>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Short Description</label>
                 <input
                   type="text"
+                  value={blogFormData.shortDesc}
+                  onChange={(e) => setBlogFormData({ ...blogFormData, shortDesc: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Article Content</label>
+                <textarea
+                  rows={6}
                   required
-                  value={blogFormData.author}
-                  onChange={(e) => setBlogFormData({ ...blogFormData, author: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
+                  value={blogFormData.content}
+                  onChange={(e) => setBlogFormData({ ...blogFormData, content: e.target.value })}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white resize-none"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Reading Time Metric</label>
-                <input
-                  type="text"
-                  required
-                  value={blogFormData.readTime}
-                  onChange={(e) => setBlogFormData({ ...blogFormData, readTime: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
-              </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Visual Cover URL</label>
-              <input
-                type="text"
-                required
-                value={blogFormData.image}
-                onChange={(e) => setBlogFormData({ ...blogFormData, image: e.target.value })}
-                placeholder="Unsplash absolute link recommended"
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Abstract Summary (Short Description)</label>
-              <input
-                type="text"
-                required
-                value={blogFormData.shortDesc}
-                onChange={(e) => setBlogFormData({ ...blogFormData, shortDesc: e.target.value })}
-                placeholder="Brief meta description (approx 150 characters)"
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Full Editorial Content</label>
-              <textarea
-                required
-                rows={6}
-                value={blogFormData.content}
-                onChange={(e) => setBlogFormData({ ...blogFormData, content: e.target.value })}
-                placeholder="Editorial narrative split by paragraph..."
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"
-              ></textarea>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={() => setIsBlogFormOpen(false)} className="bg-white border border-gray-300 text-[#0A1D37] px-4 py-2 rounded-none text-xs cursor-pointer">Cancel</button>
-              <button type="submit" className="bg-[#C5A02E] hover:bg-[#A68625] text-white font-bold px-4 py-2 rounded-none text-xs cursor-pointer">SUBMIT ARTICLE</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL: TEAM CMS FORM OVERLAY */}
-      {isTeamFormOpen && (
-        <div className="fixed inset-0 z-55 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleTeamSubmit} className="bg-[#F4F7F9] border border-gray-300 max-w-xl w-full p-6 rounded-none space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <h4 className="font-serif font-bold text-[#0A1D37] text-base uppercase tracking-tight">{teamFormData.id ? 'Edit Consultant Profile' : 'Register Partner Profile'}</h4>
-              <button type="button" onClick={() => setIsTeamFormOpen(false)} className="text-gray-500 hover:text-[#0A1D37] cursor-pointer"><X className="h-5 w-5" /></button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={teamFormData.name}
-                  onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Corporate Position</label>
-                <input
-                  type="text"
-                  required
-                  value={teamFormData.position}
-                  onChange={(e) => setTeamFormData({ ...teamFormData, position: e.target.value })}
-                  placeholder="e.g. Executive VP, Advisory"
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Professional Email</label>
-                <input
-                  type="email"
-                  value={teamFormData.email}
-                  onChange={(e) => setTeamFormData({ ...teamFormData, email: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">LinkedIn Profile Link</label>
-                <input
-                  type="text"
-                  value={teamFormData.linkedin}
-                  onChange={(e) => setTeamFormData({ ...teamFormData, linkedin: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Portrait Image URL</label>
-              <input
-                type="text"
-                required
-                value={teamFormData.image}
-                onChange={(e) => setTeamFormData({ ...teamFormData, image: e.target.value })}
-                placeholder="Unsplash portrait relative/absolute link"
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Short Professional Biography</label>
-              <textarea
-                rows={3}
-                value={teamFormData.bio}
-                onChange={(e) => setTeamFormData({ ...teamFormData, bio: e.target.value })}
-                placeholder="Summary of experience, past transactions, credentials..."
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"
-              ></textarea>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={() => setIsTeamFormOpen(false)} className="bg-white border border-gray-300 text-[#0A1D37] px-4 py-2 rounded-none text-xs cursor-pointer">Cancel</button>
-              <button type="submit" className="bg-[#C5A02E] hover:bg-[#A68625] text-white font-bold px-4 py-2 rounded-none text-xs cursor-pointer">ADD MEMBER</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL: GALLERY CMS FORM OVERLAY */}
-      {isGalleryFormOpen && (
-        <div className="fixed inset-0 z-55 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleGallerySubmit} className="bg-[#F4F7F9] border border-gray-300 max-w-md w-full p-6 rounded-none space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <h4 className="font-serif font-bold text-[#0A1D37] text-base uppercase tracking-tight">Register Gallery Asset</h4>
-              <button type="button" onClick={() => setIsGalleryFormOpen(false)} className="text-gray-500 hover:text-[#0A1D37] cursor-pointer"><X className="h-5 w-5" /></button>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Asset Title</label>
-              <input
-                type="text"
-                required
-                value={galleryFormData.title}
-                onChange={(e) => setGalleryFormData({ ...galleryFormData, title: e.target.value })}
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Asset Category Tag</label>
-              <select
-                value={galleryFormData.category}
-                onChange={(e) => setGalleryFormData({ ...galleryFormData, category: e.target.value as any })}
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase cursor-pointer"
               >
-                <option value="Office">Office</option>
-                <option value="Meetings">Meetings</option>
-                <option value="Projects">Projects</option>
-                <option value="Corporate Events">Corporate Events</option>
-                <option value="Site Visits">Site Visits</option>
-                <option value="Team Activities">Team Activities</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Media URL</label>
-              <input
-                type="text"
-                required
-                value={galleryFormData.image}
-                onChange={(e) => setGalleryFormData({ ...galleryFormData, image: e.target.value })}
-                placeholder="Absolute path or premium Unsplash address"
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-              />
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={() => setIsGalleryFormOpen(false)} className="bg-white border border-gray-300 text-[#0A1D37] px-4 py-2 rounded-none text-xs cursor-pointer">Cancel</button>
-              <button type="submit" className="bg-[#C5A02E] hover:bg-[#A68625] text-white font-bold px-4 py-2 rounded-none text-xs cursor-pointer">REGISTER ASSET</button>
-            </div>
-          </form>
+                Publish Market Insight
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* MODAL: CAREER CMS FORM OVERLAY */}
+      {/* MODAL 6: TEAM MEMBER FORM */}
+      {isTeamFormOpen && (
+        <div className="fixed inset-0 z-[60] bg-[#0A1D37]/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-[#C5A02E]/30 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+              <h3 className="font-serif font-bold text-xl text-[#0A1D37] dark:text-white">
+                {teamFormData.id ? 'Modify Personnel Profile' : 'Register New Executive Officer'}
+              </h3>
+              <button onClick={() => setIsTeamFormOpen(false)} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700">
+                <X className="h-6 w-6 text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleTeamSubmit} className="p-6 space-y-4 font-sans text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={teamFormData.name}
+                    onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Corporate Position</label>
+                  <input
+                    type="text"
+                    required
+                    value={teamFormData.position}
+                    onChange={(e) => setTeamFormData({ ...teamFormData, position: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Email Address</label>
+                  <input
+                    type="email"
+                    value={teamFormData.email}
+                    onChange={(e) => setTeamFormData({ ...teamFormData, email: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">LinkedIn URL</label>
+                  <input
+                    type="text"
+                    value={teamFormData.linkedin}
+                    onChange={(e) => setTeamFormData({ ...teamFormData, linkedin: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Profile Image URL</label>
+                  <input
+                    type="text"
+                    required
+                    value={teamFormData.image}
+                    onChange={(e) => setTeamFormData({ ...teamFormData, image: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Professional Biography</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={teamFormData.bio}
+                    onChange={(e) => setTeamFormData({ ...teamFormData, bio: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsTeamFormOpen(false)}
+                  className="px-6 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-600 dark:text-slate-300 font-bold uppercase tracking-widest hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#0A1D37] text-white font-bold uppercase tracking-widest border border-[#C5A02E]/40 shadow-lg"
+                >
+                  {teamFormData.id ? 'Save Personnel Profile' : 'Authorize & Register'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 7: GALLERY ASSET FORM */}
+      {isGalleryFormOpen && (
+        <div className="fixed inset-0 z-[60] bg-[#0A1D37]/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-[#C5A02E]/30 w-full max-w-lg animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+              <h3 className="font-serif font-bold text-xl text-[#0A1D37] dark:text-white">Register Visual Asset</h3>
+              <button onClick={() => setIsGalleryFormOpen(false)} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700">
+                <X className="h-6 w-6 text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleGallerySubmit} className="p-6 space-y-4 font-sans text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Asset Title</label>
+                <input
+                  type="text"
+                  required
+                  value={galleryFormData.title}
+                  onChange={(e) => setGalleryFormData({ ...galleryFormData, title: e.target.value })}
+                  className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Category Classification</label>
+                <select
+                  required
+                  value={galleryFormData.category}
+                  onChange={(e) => setGalleryFormData({ ...galleryFormData, category: e.target.value as any })}
+                  className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                >
+                  <option value="Office">Corporate Headquarters</option>
+                  <option value="Meetings">Executive Sessions</option>
+                  <option value="Projects">Asset Portfolio</option>
+                  <option value="Corporate Events">Corporate Events</option>
+                  <option value="Site Visits">Site Visits</option>
+                  <option value="Team Activities">Team Activities</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Image URL / Source</label>
+                <input
+                  type="text"
+                  required
+                  value={galleryFormData.image}
+                  onChange={(e) => setGalleryFormData({ ...galleryFormData, image: e.target.value })}
+                  className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  placeholder="https://images.unsplash.com/..."
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsGalleryFormOpen(false)}
+                  className="px-6 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-600 dark:text-slate-300 font-bold uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#0A1D37] text-white font-bold uppercase tracking-widest border border-[#C5A02E]/40 shadow-lg"
+                >
+                  Confirm Upload
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 8: CAREER VACANCY FORM */}
       {isCareerFormOpen && (
-        <div className="fixed inset-0 z-55 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleCareerSubmit} className="bg-[#F4F7F9] border border-gray-300 max-w-2xl w-full p-6 rounded-none space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <h4 className="font-serif font-bold text-[#0A1D37] text-base uppercase tracking-tight">{careerFormData.id ? 'Edit Vacancy' : 'Create Career Opportunity'}</h4>
-              <button type="button" onClick={() => setIsCareerFormOpen(false)} className="text-gray-500 hover:text-[#0A1D37] cursor-pointer"><X className="h-5 w-5" /></button>
+        <div className="fixed inset-0 z-[60] bg-[#0A1D37]/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-[#C5A02E]/30 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+              <h3 className="font-serif font-bold text-xl text-[#0A1D37] dark:text-white">
+                {careerFormData.id ? 'Modify Vacancy Details' : 'Broadcast New Career Opportunity'}
+              </h3>
+              <button onClick={() => setIsCareerFormOpen(false)} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700">
+                <X className="h-6 w-6 text-gray-500" />
+              </button>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Job Title</label>
-                <input
-                  type="text"
-                  required
-                  value={careerFormData.title}
-                  onChange={(e) => setCareerFormData({ ...careerFormData, title: e.target.value })}
-                  placeholder="e.g. Principal Investment Underwriter"
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
+            
+            <form onSubmit={handleCareerSubmit} className="p-6 space-y-4 font-sans text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Position Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={careerFormData.title}
+                    onChange={(e) => setCareerFormData({ ...careerFormData, title: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Department</label>
+                  <select
+                    required
+                    value={careerFormData.department}
+                    onChange={(e) => setCareerFormData({ ...careerFormData, department: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  >
+                    <option value="Investment Advisory">Investment Advisory</option>
+                    <option value="Property Management">Property Management</option>
+                    <option value="Executive Operations">Executive Operations</option>
+                    <option value="Corporate Finance">Corporate Finance</option>
+                    <option value="Strategic Development">Strategic Development</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Geographic Location</label>
+                  <input
+                    type="text"
+                    required
+                    value={careerFormData.location}
+                    onChange={(e) => setCareerFormData({ ...careerFormData, location: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Employment Type</label>
+                  <select
+                    required
+                    value={careerFormData.type}
+                    onChange={(e) => setCareerFormData({ ...careerFormData, type: e.target.value as any })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  >
+                    <option value="Full-time">Full-time Engagement</option>
+                    <option value="Part-time">Part-time Engagement</option>
+                    <option value="Internship">Executive Internship</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Position Description</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={careerFormData.description}
+                    onChange={(e) => setCareerFormData({ ...careerFormData, description: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="font-bold text-gray-600 dark:text-slate-300 uppercase text-[10px]">Candidate Requirements</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={careerFormData.requirements}
+                    onChange={(e) => setCareerFormData({ ...careerFormData, requirements: e.target.value })}
+                    className="w-full border dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-2.5 text-[#0A1D37] dark:text-white"
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Department</label>
-                <select
-                  value={careerFormData.department}
-                  onChange={(e) => setCareerFormData({ ...careerFormData, department: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCareerFormOpen(false)}
+                  className="px-6 py-2.5 border border-gray-300 dark:border-slate-800 text-gray-600 dark:text-slate-300 font-bold uppercase tracking-widest"
                 >
-                  <option value="Investment Advisory">Investment Advisory</option>
-                  <option value="Property Valuation">Property Valuation</option>
-                  <option value="Corporate Solutions">Corporate Solutions</option>
-                  <option value="Legal & zoning">Legal & Zoning</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Geographical Location</label>
-                <input
-                  type="text"
-                  required
-                  value={careerFormData.location}
-                  onChange={(e) => setCareerFormData({ ...careerFormData, location: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Contract Type</label>
-                <select
-                  value={careerFormData.type}
-                  onChange={(e) => setCareerFormData({ ...careerFormData, type: e.target.value as any })}
-                  className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none"
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#0A1D37] text-white font-bold uppercase tracking-widest border border-[#C5A02E]/40 shadow-lg"
                 >
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Internship">Internship</option>
-                </select>
+                  {careerFormData.id ? 'Authorize Updates' : 'Publish Opportunity'}
+                </button>
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Opportunity Description Summary</label>
-              <textarea
-                required
-                rows={3}
-                value={careerFormData.description}
-                onChange={(e) => setCareerFormData({ ...careerFormData, description: e.target.value })}
-                placeholder="Overview of day-to-day operations and team context..."
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none"
-              ></textarea>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500">Required Skills & Requirements (One per line)</label>
-              <textarea
-                required
-                rows={4}
-                value={careerFormData.requirements}
-                onChange={(e) => setCareerFormData({ ...careerFormData, requirements: e.target.value })}
-                placeholder="Requirement 1&#10;Requirement 2&#10;Requirement 3..."
-                className="w-full bg-white border border-gray-300 rounded-none px-3 py-2 text-xs text-[#0A1D37] focus:outline-none resize-none font-sans"
-              ></textarea>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
-              <button type="button" onClick={() => setIsCareerFormOpen(false)} className="bg-white border border-gray-300 text-[#0A1D37] px-4 py-2 rounded-none text-xs cursor-pointer">Cancel</button>
-              <button type="submit" className="bg-[#C5A02E] hover:bg-[#A68625] text-white font-bold px-4 py-2 rounded-none text-xs cursor-pointer">PUBLISH VACANCY</button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
+
+      {/* --- NOTIFICATION SLIDE-OVER DRAWER --- */}
+
+      {isNotificationDrawerOpen && (
+        <div className="fixed inset-y-0 right-0 z-50 w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-gray-300 dark:border-slate-800 shadow-2xl p-6 font-sans text-xs flex flex-col justify-between animate-in slide-in-from-right duration-200">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b mb-4">
+              <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white flex items-center gap-2">
+                <Bell className="h-4 w-4 text-[#C5A02E]" /> Notification Feed
+              </h3>
+              <button onClick={() => setIsNotificationDrawerOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 max-h-[70vh] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No notifications logged.</p>
+              ) : (
+                notifications.map(n => (
+                  <div key={n.id} className={`p-3 border text-xs ${n.read ? 'bg-slate-50 dark:bg-slate-800/40 text-gray-500 border-gray-200 dark:border-slate-800' : 'bg-amber-500/10 border-amber-500/30 text-[#0A1D37] dark:text-white font-semibold'}`}>
+                    <div className="flex justify-between items-center text-[10px] text-[#C5A02E] mb-1 font-mono uppercase font-bold">
+                      <span>{n.type.replace('_', ' ')}</span>
+                      <span>{n.timestamp.split('T')[0]}</span>
+                    </div>
+                    <p className="text-xs">{n.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={handleMarkNotificationsRead}
+            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold text-xs uppercase cursor-pointer"
+          >
+            Mark All as Read
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }

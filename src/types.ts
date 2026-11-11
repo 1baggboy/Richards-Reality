@@ -3,8 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type ConsultationStatus = 
+  | 'pending' 
+  | 'approved' 
+  | 'in_progress' 
+  | 'completed' 
+  | 'rescheduled' 
+  | 'cancelled' 
+  | 'rejected' 
+  | 'archived';
+
+export type ConsultationMethod = 'virtual' | 'phone' | 'in_person';
+
 export interface ConsultationRequest {
   id: string;
+  refNumber?: string;
   fullName: string;
   phone: string;
   email: string;
@@ -13,8 +26,102 @@ export interface ConsultationRequest {
   preferredDate: string;
   preferredTime: string;
   message: string;
-  status: 'pending' | 'contacted' | 'completed';
+  status: ConsultationStatus;
+  consultationMethod?: ConsultationMethod;
+  assignedTo?: string;
+  internalNotes?: string;
+  rescheduledDate?: string;
+  rescheduledTime?: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ConsultationDraft {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  company: string;
+  serviceNeeded: string;
+  preferredDate?: string;
+  preferredTime?: string;
+  message?: string;
+  currentStep?: number;
+  totalSteps?: number;
+  completedFieldsCount?: number;
+  status: 'in_progress' | 'abandoned' | 'submitted';
+  lastTouchedAt: string;
+}
+
+export type LeadStatus = 
+  | 'New Lead' 
+  | 'Contacted' 
+  | 'Awaiting Response' 
+  | 'Consultation Scheduled' 
+  | 'Consultation Completed' 
+  | 'Follow-up Required' 
+  | 'Converted' 
+  | 'Closed';
+
+export interface UserProfile {
+  id: string;
+  uid?: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  company?: string;
+  leadStatus: LeadStatus;
+  tags: string[];
+  assignedAdmin?: string;
+  registrationDate: string;
+  lastActive: string;
+  notes?: string;
+  consultationCount?: number;
+  totalSubmissions?: number;
+}
+
+export interface CommunicationRecord {
+  id: string;
+  userEmail: string;
+  userName: string;
+  type: 'email' | 'phone_log' | 'meeting_note';
+  subject: string;
+  message: string;
+  senderAdmin: string;
+  templateUsed?: string;
+  sentAt: string;
+  status: 'sent' | 'delivered' | 'failed';
+}
+
+export interface FollowUpTask {
+  id: string;
+  userEmail: string;
+  userName: string;
+  assignedAdmin: string;
+  scheduledDate: string;
+  scheduledTime?: string;
+  note: string;
+  status: 'pending' | 'completed' | 'overdue';
+  createdAt: string;
+}
+
+export interface AdminNotification {
+  id: string;
+  type: 'consultation_booking' | 'form_draft' | 'new_user' | 'submission' | 'followup_due' | 'support_chat';
+  title: string;
+  message: string;
+  referenceId?: string;
+  read: boolean;
+  timestamp: string;
+}
+
+export interface UserActivityLog {
+  id: string;
+  userEmail: string;
+  userName?: string;
+  action: string;
+  details: string;
+  timestamp: string;
 }
 
 export interface ContactMessage {
@@ -86,6 +193,7 @@ export interface JobApplication {
   phone: string;
   coverLetter: string;
   resumeUrl: string; // Stored as base64 or file mock
+  status?: 'pending' | 'reviewing' | 'interview' | 'hired' | 'rejected';
   createdAt: string;
 }
 
@@ -130,7 +238,7 @@ export interface WebsiteSettings {
     missionText?: string;
     teamHeadline?: string;
     teamSubheadline?: string;
-    faqs?: { q: string, a: string }[];
+    faqs?: { q: string, a: string, category?: 'Valuations' | 'Legal' | 'Corporate' }[];
     // Other Pages
     aboutPageHeadline?: string;
     aboutPageText?: string;
@@ -176,4 +284,23 @@ export interface SystemLog {
   action: string;
   details: string;
   timestamp: string;
+}
+
+export interface SupportThread {
+  id: string;
+  visitorName: string;
+  visitorEmail: string;
+  status: 'open' | 'active' | 'resolved';
+  lastMessageAt: any; // Firebase Timestamp or string
+  lastMessageText?: string;
+  createdAt: any;
+  visitorTyping?: boolean;
+  adminTyping?: boolean;
+}
+
+export interface SupportMessage {
+  id: string;
+  text: string;
+  sender: 'visitor' | 'admin';
+  timestamp: any;
 }
