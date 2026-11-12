@@ -153,39 +153,57 @@ const DEFAULT_BLOGS: BlogPost[] = [
 const DEFAULT_TEAM: TeamMember[] = [
   {
     id: "team-1",
-    name: "Richard V. Henderson",
-    position: "Founder & Managing Partner",
-    bio: "With over 25 years of institutional real estate consultancy, Richard leads the strategic vision at Richards Realty LLC. Former Senior Vice President of Institutional Capital Markets at a top global firm, he specializes in high-value asset valuation and commercial investment advisory.",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80",
-    linkedin: "https://linkedin.com/in/placeholder",
-    email: "r.henderson@richardsrealty.com"
+    name: "Michael Howard",
+    position: "Owner & Broker",
+    bio: "With over 25 years of institutional real estate consultancy, Michael leads the strategic vision at Howard Homes LLC. Former Senior Vice President of Institutional Capital Markets at a top global firm, he specializes in high-value asset valuation and commercial investment advisory.",
+    image: "https://res.cloudinary.com/dctaerfma/image/upload/v1794418821/WhatsApp_Image_2026-11-11_at_11.19.58_AM_c9zxzx.jpg",
+    linkedin: "https://linkedin.com/in/michaelhoward",
+    email: "m.howard@howardhomes.com"
   },
   {
     id: "team-2",
     name: "Elena Rostova, MRICS",
     position: "Partner, Head of Valuations",
     bio: "Elena is a chartered valuation surveyor with 18 years of experience. She heads our RICS-compliant valuations department, providing certified asset valuation reports for financial institutions, national developers, and corporate audits.",
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80",
-    linkedin: "https://linkedin.com/in/placeholder",
-    email: "e.rostova@richardsrealty.com"
+    image: "https://res.cloudinary.com/dctaerfma/image/upload/v1794418822/WhatsApp_Image_2026-11-11_at_11.20.39_AM_uzydfu.jpg",
+    linkedin: "https://linkedin.com/in/elenarostova",
+    email: "e.rostova@howardhomes.com"
   },
   {
     id: "team-3",
-    name: "Marcus Vance",
+    name: "Richard V. Henderson",
     position: "Director of Corporate Consultancy",
-    bio: "Marcus has structured lease-and-portfolio transactions for Fortune 500 tech and industrial leaders. He leads our corporate advisory branch, advising clients on optimal corporate headquarters footprint planning and landlord-tenant strategies.",
+    bio: "Richard has structured lease-and-portfolio transactions for Fortune 500 tech and industrial leaders. He leads our corporate advisory branch, advising clients on optimal corporate headquarters footprint planning and landlord-tenant strategies.",
     image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&h=400&q=80",
-    linkedin: "https://linkedin.com/in/placeholder",
-    email: "m.vance@richardsrealty.com"
+    linkedin: "https://linkedin.com/in/richardvance",
+    email: "richard.vance@howardhomes.com"
   },
   {
     id: "team-4",
-    name: "Sarah Jenkins, Esq.",
-    position: "Senior Legal Counsel",
-    bio: "Admitted to the California Bar with 12 years specializing in municipal zoning, real estate transactions, and property documentation audits. Sarah protects our clients' legal interest in complex asset acquisitions and structures land registry audits.",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80",
-    linkedin: "https://linkedin.com/in/placeholder",
-    email: "s.jenkins@richardsrealty.com"
+    name: "Vanessa Palmer",
+    position: "Real Estate Assistant",
+    bio: "Vannessa Palmer is a dedicated and detail-oriented Real Estate Assistant committed to providing excellent administrative and client support. She assists with property listings, client inquiries, documentation, property viewings, and coordinating real estate transactions. With strong communication, organisational, and interpersonal skills, she helps ensure smooth daily operations while delivering a professional and positive experience for clients.",
+    image: "https://res.cloudinary.com/dctaerfma/image/upload/v1794418821/WhatsApp_Image_2026-11-11_at_11.25.45_AM_j0zgeq.jpg",
+    linkedin: "https://linkedin.com/in/vanessapalmer",
+    email: "v.palmer@howardhomes.com"
+  },
+  {
+    id: "team-5",
+    name: "Kayle Conor",
+    position: "Real Estate Assistant",
+    bio: "Kayle Conor is a proactive and organised Real Estate Assistant with a passion for property management and client relations. She supports property listings, coordinates viewings, handles client inquiries, and assists with real estate documentation. Known for her professionalism, attention to detail, and excellent communication skills, she helps ensure efficient operations and client satisfaction.",
+    image: "https://res.cloudinary.com/dctaerfma/image/upload/v1794418821/WhatsApp_Image_2026-11-11_at_11.26.50_AM_zwfbup.jpg",
+    linkedin: "https://linkedin.com/in/kayleconor",
+    email: "k.conor@howardhomes.com"
+  },
+  {
+    id: "team-6",
+    name: "Mike Geraad",
+    position: "Maintenance Technician",
+    bio: "Mike Geraad is a skilled and reliable Maintenance Technician responsible for ensuring that facilities, equipment, and building systems remain in excellent working condition. He handles routine inspections, repairs, troubleshooting, and preventive maintenance. With strong technical abilities, attention to detail, and a commitment to safety, he helps maintain a clean, safe, and efficient working environment.",
+    image: "https://res.cloudinary.com/dctaerfma/image/upload/v1794418822/WhatsApp_Image_2026-11-11_at_11.27.22_AM_fskemx.jpg",
+    linkedin: "https://linkedin.com/in/mikegeraad",
+    email: "mike.g@howardhomes.com"
   }
 ];
 
