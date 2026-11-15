@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
 import { MapPin, Navigation, Phone, ExternalLink, Building2 } from 'lucide-react';
-import firebaseConfig from '../../firebase-applet-config.json';
 import ErrorBoundary from './ErrorBoundary';
 
 interface FooterGoogleMapProps {
@@ -29,14 +28,24 @@ function MapFallbackCard({
         <h4 className="font-serif font-bold text-sm text-white">{companyName} HQ</h4>
         <p className="text-xs text-slate-400 font-sans mt-0.5">{address}</p>
       </div>
-      <a
-        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#C5A02E] hover:underline uppercase tracking-wider pt-1"
-      >
-        <Navigation className="h-3 w-3" /> Open in Google Maps <ExternalLink className="h-3 w-3" />
-      </a>
+      <div className="flex flex-wrap items-center justify-center gap-4 pt-1">
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#C5A02E] hover:underline uppercase tracking-wider"
+        >
+          <Navigation className="h-3 w-3" /> Open in Google Maps <ExternalLink className="h-3 w-3" />
+        </a>
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-300 hover:text-[#C5A02E] uppercase tracking-wider"
+        >
+          Get Directions
+        </a>
+      </div>
     </div>
   );
 }
@@ -49,14 +58,21 @@ export default function FooterGoogleMap({
   const [isInfoWindowOpen, setIsInfoWindowOpen] = useState(false);
   const [mapError, setMapError] = useState(false);
 
-  useEffect(() => {
-    const handleAuthOrQuotaError = () => setMapError(true);
-    window.addEventListener('gmp-quota-exceeded', handleAuthOrQuotaError);
-    return () => window.removeEventListener('gmp-quota-exceeded', handleAuthOrQuotaError);
-  }, []);
+  // Only load Google Maps JS API when an explicit Google Maps Platform key is configured
+  const apiKey = (((import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string) || '').trim();
 
-  // Retrieve API key from environment variable, falling back to provisioned Firebase/GCP key
-  const apiKey = ((import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string) || (firebaseConfig as any)?.apiKey || '';
+  useEffect(() => {
+    if (!apiKey) return;
+    const prevAuthFailure = (window as any).gm_authFailure;
+    (window as any).gm_authFailure = () => {
+      setMapError(true);
+      if (typeof prevAuthFailure === 'function') prevAuthFailure();
+    };
+    return () => {
+      (window as any).gm_authFailure = prevAuthFailure;
+    };
+  }, [apiKey]);
+
   const safePhone = String(phone || '+1 (800) 555-0190');
 
   if (mapError || !apiKey) {

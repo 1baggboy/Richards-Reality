@@ -4,6 +4,7 @@ import { useToast } from './ui/Toast';
 import { WebsiteSettings } from '../types';
 import { logAnalyticsEvent } from '../lib/analytics';
 import FooterGoogleMap from './FooterGoogleMap';
+import ErrorBoundary from './ErrorBoundary';
 
 interface FooterProps {
   setTab: (tab: string) => void;
@@ -13,6 +14,8 @@ interface FooterProps {
 }
 
 export default function Footer({ setTab, onBookClick, googleMapIframe, settings }: FooterProps) {
+  console.log('[Footer] Component rendering:', { companyName: settings?.general?.companyName || 'Howard Homes LLC' });
+
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -21,6 +24,7 @@ export default function Footer({ setTab, onBookClick, googleMapIframe, settings 
   const newsletterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    console.log('[Footer] Mounted in DOM');
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -256,11 +260,19 @@ export default function Footer({ setTab, onBookClick, googleMapIframe, settings 
         {/* Google Map & Footnote Map Split */}
         <div className="mt-12 pt-12 border-t border-gray-800 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 rounded-none overflow-hidden h-[220px] bg-slate-900 border border-slate-700 shadow-xl">
-            <FooterGoogleMap 
-              address={settings?.general?.address} 
-              companyName={settings?.general?.companyName}
-              phone={settings?.general?.phone}
-            />
+            <ErrorBoundary
+              fallback={
+                <div className="w-full h-full flex items-center justify-center p-6 text-center text-xs text-slate-300">
+                  {settings?.general?.address || "1995 Woodlake Dr, Orange Park, FL 32003, USA"}
+                </div>
+              }
+            >
+              <FooterGoogleMap 
+                address={settings?.general?.address} 
+                companyName={settings?.general?.companyName}
+                phone={settings?.general?.phone}
+              />
+            </ErrorBoundary>
           </div>
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-1">
@@ -294,9 +306,9 @@ export default function Footer({ setTab, onBookClick, googleMapIframe, settings 
       </div>
 
       {/* Bottom bar */}
-      <div className="bg-white border-t border-gray-200 py-6 text-[11px]">
+      <div className="bg-white border-t border-gray-200 py-6 text-[11px] text-slate-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <p>© {new Date().getFullYear()} {settings?.general?.companyName || "Howard Homes LLC"}. All Rights Reserved. Accredited Corporate Real Estate Advisors.</p>
+          <p className="text-slate-600">© {new Date().getFullYear()} {settings?.general?.companyName || "Howard Homes LLC"}. All Rights Reserved. Accredited Corporate Real Estate Advisors.</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-slate-500">
             <button onClick={() => handleLinkClick('privacy')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Privacy Policy</button>
             <button onClick={() => handleLinkClick('terms')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Terms of Service</button>

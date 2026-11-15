@@ -72,7 +72,6 @@ export default function App() {
   const [isReadingBlog, setIsReadingBlog] = useState(false);
   const [blogScrollProgress, setBlogScrollProgress] = useState(0);
   const [isPrintingPortfolio, setIsPrintingPortfolio] = useState(false);
-  const [gmpQuotaExceeded, setGmpQuotaExceeded] = useState(false);
 
   const setTab = (nextTab: string) => {
     const safeTab = VALID_TABS.has(nextTab) ? nextTab : 'home';
@@ -95,9 +94,6 @@ export default function App() {
   }, [currentTab]);
 
   useEffect(() => {
-    const handleGmpQuota = () => setGmpQuotaExceeded(true);
-    window.addEventListener('gmp-quota-exceeded', handleGmpQuota);
-    
     // Check standalone admin URL trigger (e.g. ?admin=true or #admin or /admin)
     const params = new URLSearchParams(window.location.search);
     if (params.get('admin') === 'true' || window.location.hash === '#admin' || window.location.pathname.includes('/admin')) {
@@ -117,7 +113,6 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
 
     return () => {
-      window.removeEventListener('gmp-quota-exceeded', handleGmpQuota);
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
@@ -366,24 +361,6 @@ export default function App() {
             className="h-full bg-[#C5A02E] transition-all duration-75 ease-out"
             style={{ width: `${activeProgress}%` }}
           />
-        </div>
-      )}
-
-      {/* Google Maps Platform Quota Defense Banner (Demo Key) */}
-      {gmpQuotaExceeded && (
-        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-[10000] shadow-sm">
-          <span>
-            Google Maps Platform quota reached. If you are the app owner, visit{' '}
-            <a
-              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-semibold text-amber-950 hover:text-amber-800"
-            >
-              maps developer site
-            </a>{' '}
-            for instructions to update your account.
-          </span>
         </div>
       )}
 
@@ -1479,7 +1456,17 @@ By engaging with this website, you acknowledge that ${settings.general?.companyN
       </main>
 
       {/* Corporate Footer Section */}
-      <ErrorBoundary variant="silent">
+      {(() => {
+        console.log('[App] Rendering Footer section:', { currentTab });
+        return null;
+      })()}
+      <ErrorBoundary
+        fallback={
+          <footer className="bg-[#0A1D37] text-gray-300 font-sans border-t border-gray-800 py-8 px-4 text-center text-xs">
+            <p>© {new Date().getFullYear()} {settings?.general?.companyName || "Howard Homes LLC"}. All Rights Reserved.</p>
+          </footer>
+        }
+      >
         <Footer setTab={setTab} onBookClick={() => setTab('consultation')} googleMapIframe={settings?.general?.googleMapIframe || ''} settings={settings} />
       </ErrorBoundary>
 
