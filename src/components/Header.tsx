@@ -157,7 +157,7 @@ export default function Header({ currentTab, setTab, onBookClick, onApplyClick, 
             ))}
             <div className="pt-4 px-4 flex flex-col gap-3 border-t border-gray-200 dark:border-slate-800 mt-2">
               <a
-                href={`tel:${settings?.general?.phone?.replace(/\s+/g, '') || "+18005550190"}`}
+                href={`tel:${String(settings?.general?.phone || "+18005550190").replace(/\s+/g, '')}`}
                 className="flex items-center justify-center gap-2 text-xs text-[#0A1D37] dark:text-slate-200 py-2.5 border border-gray-300 dark:border-slate-700 rounded-none font-sans font-bold"
               >
                 <Phone className="h-4 w-4 text-[#C5A02E]" />

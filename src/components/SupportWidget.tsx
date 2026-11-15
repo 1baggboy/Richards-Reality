@@ -21,18 +21,24 @@ export default function SupportWidget() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageCountRef = useRef(0);
 
-  const adminReplySound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'));
-  const userSendSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
+  const adminReplySound = useRef<HTMLAudioElement | null>(
+    typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3') : null
+  );
+  const userSendSound = useRef<HTMLAudioElement | null>(
+    typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3') : null
+  );
 
   useEffect(() => {
     if (activeThreadId) {
       setStep('chat');
       const threadRef = doc(db, 'supportThreads', activeThreadId);
       
-      const unsubscribeThread = onSnapshot(threadRef, (doc) => {
-        if (doc.exists()) {
-          setThreadData({ id: doc.id, ...doc.data() } as SupportThread);
+      const unsubscribeThread = onSnapshot(threadRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setThreadData({ id: docSnap.id, ...docSnap.data() } as SupportThread);
         }
+      }, (err) => {
+        console.warn('Support thread listener paused:', err?.message || err);
       });
 
       const q = query(
@@ -41,21 +47,23 @@ export default function SupportWidget() {
       );
       
       const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-        const msgs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
+        const msgs = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
         } as SupportMessage));
         
         // Play sound if new message from admin
         if (msgs.length > lastMessageCountRef.current) {
           const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg.sender === 'admin') {
-            adminReplySound.current.play().catch(() => {});
+          if (lastMsg?.sender === 'admin') {
+            adminReplySound.current?.play().catch(() => {});
           }
           lastMessageCountRef.current = msgs.length;
         }
         
         setMessages(msgs);
+      }, (err) => {
+        console.warn('Support messages listener paused:', err?.message || err);
       });
 
       return () => {
@@ -159,7 +167,7 @@ export default function SupportWidget() {
     setIsTyping(false);
 
     try {
-      userSendSound.current.play().catch(() => {});
+      userSendSound.current?.play().catch(() => {});
       
       await addDoc(collection(db, 'supportThreads', activeThreadId, 'messages'), {
         text: currentMsg,
@@ -295,7 +303,9 @@ export default function SupportWidget() {
                         {msg.text}
                       </div>
                       <span className="text-[9px] text-gray-400 dark:text-slate-500 mt-1 uppercase font-sans tracking-wider tabular-nums">
-                        {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                        {msg.timestamp && typeof msg.timestamp.toDate === 'function'
+                          ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : 'Sending...'}
                       </span>
                     </div>
                   ))}

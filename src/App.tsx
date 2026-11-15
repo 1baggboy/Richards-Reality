@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { 
   Building2, Phone, Mail, MapPin, Clock, Lock, ShieldCheck, ChevronDown, 
   ChevronRight, Award, Users, CheckCircle2, Star, ArrowUpRight, Search, 
@@ -15,6 +14,7 @@ import AdminPanel from './components/AdminPanel';
 import SupportWidget from './components/SupportWidget';
 import GlobalSearch from './components/GlobalSearch';
 import TrackApplication from './components/TrackApplication';
+import ErrorBoundary from './components/ErrorBoundary';
 import { PrintHeader, PrintFooter, handleImmediatePrint } from './components/PrintHeaderFooter';
 import { BlogPost, TeamMember, GalleryItem, JobListing, WebsiteSettings, Testimonial } from './types';
 import { useToast } from './components/ui/Toast';
@@ -177,12 +177,14 @@ export default function App() {
         fetchJsonSafe<Testimonial[]>('/api/testimonials')
       ]);
 
-      if (resSettings && !resSettings.error) setSettings(mergeWebsiteSettings(resSettings));
-      if (Array.isArray(resBlogs) && resBlogs.length > 0) setBlogs(resBlogs);
-      if (Array.isArray(resTeam) && resTeam.length > 0) setTeam(resTeam);
-      if (Array.isArray(resGallery) && resGallery.length > 0) setGallery(resGallery);
-      if (Array.isArray(resCareers)) setCareers(resCareers);
-      if (Array.isArray(resTestimonials) && resTestimonials.length > 0) setTestimonials(resTestimonials);
+      if (resSettings && typeof resSettings === 'object' && !Array.isArray(resSettings) && !resSettings.error) {
+        setSettings(mergeWebsiteSettings(resSettings));
+      }
+      if (Array.isArray(resBlogs) && resBlogs.length > 0) setBlogs(resBlogs.filter(Boolean));
+      if (Array.isArray(resTeam) && resTeam.length > 0) setTeam(resTeam.filter(Boolean));
+      if (Array.isArray(resGallery) && resGallery.length > 0) setGallery(resGallery.filter(Boolean));
+      if (Array.isArray(resCareers)) setCareers(resCareers.filter(Boolean));
+      if (Array.isArray(resTestimonials) && resTestimonials.length > 0) setTestimonials(resTestimonials.filter(Boolean));
     } catch (err) {
       console.error("Failed synchronizing corporate database metrics:", err);
     }
@@ -322,7 +324,8 @@ export default function App() {
 
 
   // Gallery items category filter logic
-  const filteredGallery = gallery.filter(item => activeGalleryFilter === 'All' || item.category === activeGalleryFilter);
+  const safeGallery = Array.isArray(gallery) ? gallery : [];
+  const filteredGallery = safeGallery.filter(item => item && (activeGalleryFilter === 'All' || item.category === activeGalleryFilter));
 
   return (
     <div className={`min-h-screen flex flex-col font-sans selection:bg-[#C5A02E] selection:text-white ${settings?.styling?.fontFamily || 'font-sans'}`}>
@@ -396,6 +399,7 @@ export default function App() {
 
       {/* RENDER PAGES DYNAMICALLY */}
       <main className="flex-grow pt-[72px]">
+        <ErrorBoundary key={currentTab} variant="section" onReset={() => setTab('home')}>
 
         {/* 1. HOME TAB */}
         {currentTab === 'home' && (
@@ -498,12 +502,9 @@ export default function App() {
                     { name: 'Project Management Advisory', desc: 'Technical developer representation, cost estimation analysis, procurement auditing, and milestone audits.' },
                     { name: 'Legal Consultation', desc: 'Eminent domain consultation, contractual boundary reviews, easement audits, and technical legal diagnostics.' }
                   ].map((svc, idx) => (
-                    <motion.div 
+                    <div 
                       key={idx}
-                      whileHover={{ y: -5, rotate: 1 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                      className="group bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-6 rounded-none flex flex-col justify-between hover:border-gray-300 dark:hover:border-slate-600 transition-all shadow-xl"
-                      
+                      className="group bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-6 rounded-none flex flex-col justify-between hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300 hover:-translate-y-1 hover:rotate-1 shadow-xl"
                     >
                       <div className="space-y-4">
                         <div className="h-10 w-10 rounded-none bg-[#C5A02E]/10 text-[#C5A02E] flex items-center justify-center font-bold text-sm font-sans">
@@ -522,7 +523,7 @@ export default function App() {
                           Learn Detail →
                         </button>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -548,18 +549,16 @@ export default function App() {
                   { title: 'Industry Expertise', desc: 'Unrivaled command of zoning laws, RICS guidelines, and local real estate parameters.' },
                   { title: 'Professional Guidance', desc: 'Direct access to founding partners during complex legal zoning audits.' }
                 ].map((item, idx) => (
-                  <motion.div 
+                  <div 
                     key={idx} 
-                    whileHover={{ y: -5, rotate: 1 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                    className="bg-[#F4F7F9]/30 dark:bg-slate-900/30 border border-gray-200 dark:border-slate-800 p-6 rounded-none space-y-3 shadow-lg"
+                    className="bg-[#F4F7F9]/30 dark:bg-slate-900/30 border border-gray-200 dark:border-slate-800 p-6 rounded-none space-y-3 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:rotate-1"
                   >
                     <div className="inline-flex p-2 bg-[#C5A02E]/10 text-[#C5A02E] rounded-none">
                       <CheckCircle2 className="h-5 w-5" />
                     </div>
                     <h4 className="font-serif font-bold text-sm text-[#0A1D37] dark:text-slate-200">{item.title}</h4>
                     <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed">{item.desc}</p>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -627,22 +626,20 @@ export default function App() {
                     { val: 'Accountability', desc: 'Full corporate liability and insurance cover backing our structural briefs.' },
                     { val: 'Teamwork', desc: 'Cross-functional alignments merging analysts, lawyers, and surveyors.' }
                   ].map((item, idx) => (
-                    <motion.div 
+                    <div 
                       key={idx} 
-                      whileHover={{ y: -5, rotate: 1 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                      className="bg-[#F4F7F9]/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-800 p-6 rounded-none space-y-2"
+                      className="bg-[#F4F7F9]/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-800 p-6 rounded-none space-y-2 transition-all duration-300 hover:-translate-y-1 hover:rotate-1"
                     >
                       <h4 className="font-serif font-bold text-[#0A1D37] dark:text-white text-base">{item.val}</h4>
                       <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed">{item.desc}</p>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>
             </section>
 
             {/* Testimonials Slider */}
-            {testimonials.length > 0 && (
+            {Array.isArray(testimonials) && testimonials.length > 0 && (
               <section className="py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
                 <div className="text-center space-y-3">
                   <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">VERIFIED REFS</span>
@@ -650,24 +647,27 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {testimonials.map((test) => (
-                    <div key={test.id} className="bg-[#F4F7F9]/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-800 p-6 rounded-none flex flex-col justify-between space-y-4 relative">
-                      <div className="space-y-2">
-                        <div className="flex text-[#C5A02E] gap-0.5">
-                          {Array.from({ length: test.rating }).map((_, i) => (
-                            <Star key={i} className="h-3.5 w-3.5 fill-current" />
-                          ))}
+                  {testimonials.map((test, tIdx) => {
+                    const ratingCount = Math.min(Math.max(Math.round(Number(test?.rating) || 5), 0), 5);
+                    return (
+                      <div key={test?.id || tIdx} className="bg-[#F4F7F9]/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-800 p-6 rounded-none flex flex-col justify-between space-y-4 relative">
+                        <div className="space-y-2">
+                          <div className="flex text-[#C5A02E] gap-0.5">
+                            {Array.from({ length: ratingCount }).map((_, i) => (
+                              <Star key={i} className="h-3.5 w-3.5 fill-current" />
+                            ))}
+                          </div>
+                          <p className="text-[#0A1D37] dark:text-slate-200 text-xs italic leading-relaxed font-sans">
+                            "{test?.review}"
+                          </p>
                         </div>
-                        <p className="text-[#0A1D37] dark:text-slate-200 text-xs italic leading-relaxed font-sans">
-                          "{test.review}"
-                        </p>
+                        <div className="pt-3 border-t border-gray-200/50 dark:border-slate-800">
+                          <p className="text-xs font-bold text-[#0A1D37] dark:text-white">{test?.name}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-sans uppercase">{test?.company}</p>
+                        </div>
                       </div>
-                      <div className="pt-3 border-t border-gray-200/50 dark:border-slate-800">
-                        <p className="text-xs font-bold text-[#0A1D37] dark:text-white">{test.name}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-sans uppercase">{test.company}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -774,8 +774,18 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
                     "{settings?.content?.aboutPageMessageText || `At ${settings.general?.companyName || "Howard Homes LLC"}, we believe that real estate excellence is built upon absolute transparency and fiduciary loyalty. We have chosen never to participate in listing markets or transaction brokerages to maintain completely objective advice for our clients. That is our structural ceiling, and it remains our absolute pride.`}"
                   </p>
                   <div className="pt-4 border-t border-slate-700">
-                    <p className="text-xs font-bold text-white uppercase tracking-wider">{settings?.content?.aboutPageMessageAuthor?.split(',')[0] || "Michael Howard"}</p>
-                    <p className="text-[10px] text-[#C5A02E] font-sans font-semibold pt-0.5">{settings?.content?.aboutPageMessageAuthor?.split(',')[1]?.trim() || "Managing Director & Principal Valuer"}</p>
+                    {(() => {
+                      const rawAuthor = typeof settings?.content?.aboutPageMessageAuthor === 'string'
+                        ? settings.content.aboutPageMessageAuthor
+                        : "Michael Howard, Managing Director & Principal Valuer";
+                      const parts = rawAuthor.split(',');
+                      return (
+                        <>
+                          <p className="text-xs font-bold text-white uppercase tracking-wider">{parts[0] || "Michael Howard"}</p>
+                          <p className="text-[10px] text-[#C5A02E] font-sans font-semibold pt-0.5">{parts[1]?.trim() || "Managing Director & Principal Valuer"}</p>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -960,15 +970,13 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
               <span className="text-xs text-[#0A1D37] dark:text-slate-200 font-bold uppercase tracking-wider block text-center">Our Core Values</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {['Integrity', 'Professionalism', 'Innovation', 'Transparency', 'Excellence', 'Customer Focus', 'Accountability', 'Teamwork'].map((val, idx) => (
-                  <motion.div 
+                  <div 
                     key={idx} 
-                    whileHover={{ y: -5, rotate: 1 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                    className="bg-[#F4F7F9]/20 dark:bg-slate-900/20 border border-gray-200 dark:border-slate-800 p-6 rounded-none text-center shadow-md"
+                    className="bg-[#F4F7F9]/20 dark:bg-slate-900/20 border border-gray-200 dark:border-slate-800 p-6 rounded-none text-center shadow-md transition-all duration-300 hover:-translate-y-1 hover:rotate-1"
                   >
                     <span className="text-[#C5A02E] font-sans text-xs font-bold block">0{idx + 1}</span>
                     <h4 className="font-serif font-bold text-[#0A1D37] dark:text-white text-sm pt-1">{val}</h4>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -1130,7 +1138,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
               {/* Left Opportunities List */}
               <div className="lg:col-span-7 space-y-6">
-                {careers.length === 0 ? (
+                {!Array.isArray(careers) || careers.length === 0 ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-sans">There are currently no active openings. Check back soon.</p>
                 ) : (
                   careers.map((job) => (
@@ -1160,7 +1168,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
                       <div className="space-y-1.5 pt-2 text-xs text-gray-500 dark:text-slate-400">
                         <p className="font-semibold text-[#0A1D37] dark:text-white">Key Requirements:</p>
                         <ul className="list-disc pl-5 space-y-1">
-                          {(job.requirements || []).map((req, idx) => (
+                          {(Array.isArray(job.requirements) ? job.requirements : []).map((req, idx) => (
                             <li key={idx}>{req}</li>
                           ))}
                         </ul>
@@ -1310,7 +1318,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
               return (
                 <div className="space-y-8">
                   {categories.map(cat => {
-                    const catFaqs = faqs.filter(f => (f.category || 'Corporate') === cat);
+                    const catFaqs = faqs.filter(f => f && (f.category || 'Corporate') === cat);
                     if (catFaqs.length === 0) return null;
                     const catKey = `cat-${cat}`;
                     const isCatOpen = faqOpen[catKey] !== false;
@@ -1467,10 +1475,13 @@ By engaging with this website, you acknowledge that ${settings.general?.companyN
           </div>
         )}
 
+        </ErrorBoundary>
       </main>
 
       {/* Corporate Footer Section */}
-      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} googleMapIframe={settings?.general?.googleMapIframe || ''} settings={settings} />
+      <ErrorBoundary variant="silent">
+        <Footer setTab={setTab} onBookClick={() => setTab('consultation')} googleMapIframe={settings?.general?.googleMapIframe || ''} settings={settings} />
+      </ErrorBoundary>
 
       {/* Floating Back to Top Button */}
       {showScrollTop && (
@@ -1487,10 +1498,14 @@ By engaging with this website, you acknowledge that ${settings.general?.companyN
 
       {/* Full Screen Interactive Admin Control Panel Modal */}
       {isAdminOpen && (
-        <AdminPanel onClose={handleAdminClose} />
+        <ErrorBoundary variant="section" onReset={handleAdminClose}>
+          <AdminPanel onClose={handleAdminClose} />
+        </ErrorBoundary>
       )}
 
-      <SupportWidget />
+      <ErrorBoundary variant="silent">
+        <SupportWidget />
+      </ErrorBoundary>
       
       <GlobalSearch 
         isOpen={isSearchOpen} 

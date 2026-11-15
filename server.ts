@@ -1,8 +1,20 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { initializeApp as initAdminApp, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp as initAdminApp, getApps as getAdminApps, cert } from 'firebase-admin/app';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import { initializeApp as initClientApp, getApps as getClientApps, getApp as getClientApp } from 'firebase/app';
+import {
+  initializeFirestore as initClientFirestore,
+  getFirestore as getClientFirestore,
+  collection as clientCollection,
+  doc as clientDoc,
+  getDoc as clientGetDoc,
+  getDocs as clientGetDocs,
+  setDoc as clientSetDoc,
+  deleteDoc as clientDeleteDoc,
+  writeBatch as clientWriteBatch
+} from 'firebase/firestore';
 import { 
   ConsultationRequest, 
   ContactMessage, 
@@ -423,41 +435,169 @@ function pushAdminNotification(type: AdminNotification['type'], title: string, m
 }
 
 // --- FIRESTORE INTEGRATION SETUP ---
-let firestoreDb: any = null;
+interface FirestoreBackend {
+  mode: 'admin' | 'client';
+  getSettings: () => Promise<any | null>;
+  saveSettings: (settings: any) => Promise<void>;
+  getCollection: (collName: string) => Promise<any[]>;
+  setDoc: (collName: string, docId: string, data: any) => Promise<void>;
+  deleteDoc: (collName: string, docId: string) => Promise<void>;
+  bulkSetCollection: (collName: string, list: any[]) => Promise<void>;
+  seedCollection: (collName: string, list: any[]) => Promise<void>;
+}
+
+let firestoreBackend: FirestoreBackend | null = null;
+
+function sanitizeForFirestore<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function createAdminBackend(adminDb: ReturnType<typeof getAdminFirestore>): FirestoreBackend {
+  return {
+    mode: 'admin',
+    async getSettings() {
+      const snap = await adminDb.collection('config').doc('settings').get();
+      return snap.exists ? snap.data() : null;
+    },
+    async saveSettings(settings: any) {
+      await adminDb.collection('config').doc('settings').set(sanitizeForFirestore(settings));
+    },
+    async getCollection(collName: string) {
+      const snap = await adminDb.collection(collName).get();
+      if (snap.empty) return [];
+      const list: any[] = [];
+      snap.forEach((d: any) => list.push({ ...d.data() }));
+      return list;
+    },
+    async setDoc(collName: string, docId: string, data: any) {
+      await adminDb.collection(collName).doc(docId).set(sanitizeForFirestore(data));
+    },
+    async deleteDoc(collName: string, docId: string) {
+      await adminDb.collection(collName).doc(docId).delete();
+    },
+    async bulkSetCollection(collName: string, list: any[]) {
+      const snap = await adminDb.collection(collName).get();
+      if (!snap.empty) {
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 400) {
+          const batch = adminDb.batch();
+          docs.slice(i, i + 400).forEach((d: any) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+      for (let i = 0; i < list.length; i += 400) {
+        const writeBatch = adminDb.batch();
+        for (const item of list.slice(i, i + 400)) {
+          const docId = item.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+          writeBatch.set(adminDb.collection(collName).doc(docId), sanitizeForFirestore(item));
+        }
+        await writeBatch.commit();
+      }
+    },
+    async seedCollection(collName: string, list: any[]) {
+      for (let i = 0; i < list.length; i += 400) {
+        const batch = adminDb.batch();
+        for (const record of list.slice(i, i + 400)) {
+          const docId = record.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+          batch.set(adminDb.collection(collName).doc(docId), sanitizeForFirestore(record));
+        }
+        await batch.commit();
+      }
+    }
+  };
+}
+
+function createClientBackend(clientDb: ReturnType<typeof getClientFirestore>): FirestoreBackend {
+  return {
+    mode: 'client',
+    async getSettings() {
+      const snap = await clientGetDoc(clientDoc(clientDb, 'config', 'settings'));
+      return snap.exists() ? snap.data() : null;
+    },
+    async saveSettings(settings: any) {
+      await clientSetDoc(clientDoc(clientDb, 'config', 'settings'), sanitizeForFirestore(settings));
+    },
+    async getCollection(collName: string) {
+      const snap = await clientGetDocs(clientCollection(clientDb, collName));
+      if (snap.empty) return [];
+      const list: any[] = [];
+      snap.forEach((d) => list.push({ ...d.data() }));
+      return list;
+    },
+    async setDoc(collName: string, docId: string, data: any) {
+      await clientSetDoc(clientDoc(clientDb, collName, docId), sanitizeForFirestore(data));
+    },
+    async deleteDoc(collName: string, docId: string) {
+      await clientDeleteDoc(clientDoc(clientDb, collName, docId));
+    },
+    async bulkSetCollection(collName: string, list: any[]) {
+      const snap = await clientGetDocs(clientCollection(clientDb, collName));
+      if (!snap.empty) {
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 400) {
+          const batch = clientWriteBatch(clientDb);
+          docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+      for (let i = 0; i < list.length; i += 400) {
+        const writeBatch = clientWriteBatch(clientDb);
+        for (const item of list.slice(i, i + 400)) {
+          const docId = item.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+          writeBatch.set(clientDoc(clientDb, collName, docId), sanitizeForFirestore(item));
+        }
+        await writeBatch.commit();
+      }
+    },
+    async seedCollection(collName: string, list: any[]) {
+      for (let i = 0; i < list.length; i += 400) {
+        const batch = clientWriteBatch(clientDb);
+        for (const record of list.slice(i, i + 400)) {
+          const docId = record.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+          batch.set(clientDoc(clientDb, collName, docId), sanitizeForFirestore(record));
+        }
+        await batch.commit();
+      }
+    }
+  };
+}
 
 function handleFirestoreError(err: any, operationName: string) {
   const errMsg = err?.message || String(err);
-  console.error(`Firestore error during [${operationName}]:`, errMsg);
   if (
     errMsg.includes("PERMISSION_DENIED") ||
+    errMsg.includes("permission-denied") ||
     errMsg.includes("Permission denied") ||
     errMsg.includes("Forbidden") ||
     errMsg.includes("Could not load the default credentials") ||
     errMsg.includes("UNAUTHENTICATED") ||
     errMsg.includes("invalid_grant") ||
     err?.code === 7 ||
-    err?.code === 16
+    err?.code === 16 ||
+    err?.code === 'permission-denied'
   ) {
-    console.warn("⚠️ Firestore access unavailable or denied. Disabling Firestore integration and using JSON database storage.");
-    firestoreDb = null;
+    console.warn(`⚠️ Firestore access unavailable during [${operationName}]. Using JSON database storage fallback.`);
+    firestoreBackend = null;
+    return;
   }
+  console.warn(`Firestore warning during [${operationName}]:`, errMsg);
 }
 
 async function firestoreSaveSettings() {
-  if (!firestoreDb) return;
+  if (!firestoreBackend) return;
   try {
-    await firestoreDb.collection('config').doc('settings').set(DB.settings);
+    await firestoreBackend.saveSettings(DB.settings);
   } catch (err) {
     handleFirestoreError(err, "saveSettings");
   }
 }
 
 async function firestoreAddOrUpdateRecord(collName: string, record: any) {
-  if (!firestoreDb) return;
+  if (!firestoreBackend) return;
   try {
-    const docId = record.id;
+    const docId = record?.id;
     if (docId) {
-      await firestoreDb.collection(collName).doc(docId).set(record);
+      await firestoreBackend.setDoc(collName, String(docId), record);
     }
   } catch (err) {
     handleFirestoreError(err, `writeToCollection:${collName}`);
@@ -465,57 +605,41 @@ async function firestoreAddOrUpdateRecord(collName: string, record: any) {
 }
 
 async function firestoreDeleteRecord(collName: string, docId: string) {
-  if (!firestoreDb) return;
+  if (!firestoreBackend) return;
   try {
-    await firestoreDb.collection(collName).doc(docId).delete();
+    await firestoreBackend.deleteDoc(collName, String(docId));
   } catch (err) {
     handleFirestoreError(err, `deleteFromCollection:${collName}`);
   }
 }
 
 async function firestoreBulkSetCollection(collName: string, list: any[]) {
-  if (!firestoreDb) return;
+  if (!firestoreBackend) return;
   try {
-    const snapshot = await firestoreDb.collection(collName).get();
-    const batch = firestoreDb.batch();
-    snapshot.forEach((doc: any) => {
-      batch.delete(doc.ref);
-    });
-    await batch.commit();
-
-    // Batch set list in chunks of 400 (Firestore limit is 500)
-    const chunkSize = 400;
-    for (let i = 0; i < list.length; i += chunkSize) {
-      const chunk = list.slice(i, i + chunkSize);
-      const writeBatch = firestoreDb.batch();
-      for (const item of chunk) {
-        const docId = item.id || `doc-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        writeBatch.set(firestoreDb.collection(collName).doc(docId), item);
-      }
-      await writeBatch.commit();
-    }
+    await firestoreBackend.bulkSetCollection(collName, list);
   } catch (err) {
     handleFirestoreError(err, `bulkWriteCollection:${collName}`);
   }
 }
 
 async function syncFromFirestore() {
-  if (!firestoreDb) return;
+  const backend = firestoreBackend;
+  if (!backend) return;
   console.log("Syncing database cache from Firestore...");
   try {
-    // 1. Settings
-    try {
-      const settingsDoc = await firestoreDb.collection('config').doc('settings').get();
-      if (settingsDoc.exists) {
-        DB.settings = settingsDoc.data();
-      } else {
-        await firestoreDb.collection('config').doc('settings').set(DB.settings);
+    const syncSettingsTask = (async () => {
+      try {
+        const remoteSettings = await backend.getSettings();
+        if (remoteSettings) {
+          DB.settings = remoteSettings;
+        } else {
+          await backend.saveSettings(DB.settings);
+        }
+      } catch (err) {
+        handleFirestoreError(err, "syncSettings");
       }
-    } catch (err) {
-      handleFirestoreError(err, "syncSettings");
-    }
+    })();
 
-    // 2. Collections to sync
     const keys = [
       { key: 'blogs', coll: 'blogs' },
       { key: 'team', coll: 'team' },
@@ -535,17 +659,11 @@ async function syncFromFirestore() {
       { key: 'userActivities', coll: 'userActivities' }
     ];
 
-    for (const item of keys) {
-      if (!firestoreDb) return; // Exit if disabled by previous collection error
+    const syncCollectionTasks = keys.map(async (item) => {
+      if (!firestoreBackend) return;
       try {
-        const snapshot = await firestoreDb.collection(item.coll).get();
-        if (!snapshot.empty) {
-          const list: any[] = [];
-          snapshot.forEach((doc: any) => {
-            list.push({ ...doc.data() });
-          });
-
-          // Sort items appropriately
+        const list = await backend.getCollection(item.coll);
+        if (list.length > 0) {
           if (item.key === 'blogs') {
             list.sort((a, b) => {
               const timeA = a.createdAt || a.date || a.id || "";
@@ -561,26 +679,23 @@ async function syncFromFirestore() {
           } else {
             list.sort((a, b) => (a.id > b.id ? 1 : -1));
           }
-
           (DB as any)[item.key] = list;
         } else {
           const initialList = (DB as any)[item.key];
           if (initialList && initialList.length > 0) {
             console.log(`Seeding Firestore collection '${item.coll}' with ${initialList.length} items...`);
-            const batch = firestoreDb.batch();
-            for (const record of initialList) {
-              const docId = record.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-              const docRef = firestoreDb.collection(item.coll).doc(docId);
-              batch.set(docRef, record);
-            }
-            await batch.commit();
+            await backend.seedCollection(item.coll, initialList);
           }
         }
       } catch (err) {
         handleFirestoreError(err, `syncCollection:${item.coll}`);
       }
+    });
+
+    await Promise.all([syncSettingsTask, ...syncCollectionTasks]);
+    if (firestoreBackend) {
+      console.log("Database cache synced successfully from Firestore.");
     }
-    console.log("Database cache synced successfully from Firestore.");
   } catch (err) {
     handleFirestoreError(err, "syncFromFirestore");
   }
@@ -594,20 +709,64 @@ async function initFirestore() {
       return;
     }
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    const adminApp = getApps().length > 0 ? getApps()[0] : initAdminApp({
-      projectId: config.projectId,
-    });
-    let dbId = config.firestoreDatabaseId;
+    let dbId: string | undefined = config.firestoreDatabaseId;
     if (!dbId || dbId === 'default' || dbId === '(default)') {
       dbId = undefined;
     }
-    firestoreDb = getFirestore(adminApp, dbId);
-    console.log(`Firebase Admin initialized successfully with project: ${config.projectId}, DB: ${dbId || '(default)'}`);
-    
+
+    const hasServiceAccount = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_SERVICE_ACCOUNT);
+
+    if (hasServiceAccount) {
+      try {
+        const appOptions: Record<string, any> = { projectId: config.projectId };
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+          appOptions.credential = cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+        }
+        const adminApp = getAdminApps().length > 0 ? getAdminApps()[0] : initAdminApp(appOptions);
+        const adminDb = getAdminFirestore(adminApp, dbId);
+        firestoreBackend = createAdminBackend(adminDb);
+        console.log(`Firebase Admin initialized successfully with project: ${config.projectId}, DB: ${dbId || '(default)'}`);
+      } catch (adminErr) {
+        console.warn("Firebase Admin initialization failed, falling back to Client SDK:", adminErr);
+        firestoreBackend = null;
+      }
+    }
+
+    if (!firestoreBackend) {
+      const clientAppName = 'howard-server-client';
+      const existingClient = getClientApps().find((a) => a.name === clientAppName);
+      const clientApp = existingClient
+        ? getClientApp(clientAppName)
+        : initClientApp(
+            {
+              apiKey: config.apiKey,
+              authDomain: config.authDomain,
+              projectId: config.projectId,
+              storageBucket: config.storageBucket,
+              messagingSenderId: config.messagingSenderId,
+              appId: config.appId
+            },
+            clientAppName
+          );
+
+      let clientDb: ReturnType<typeof getClientFirestore>;
+      try {
+        clientDb = initClientFirestore(
+          clientApp,
+          { ignoreUndefinedProperties: true, experimentalAutoDetectLongPolling: true },
+          dbId
+        );
+      } catch {
+        clientDb = dbId ? getClientFirestore(clientApp, dbId) : getClientFirestore(clientApp);
+      }
+      firestoreBackend = createClientBackend(clientDb);
+      console.log(`Firestore Client SDK initialized for project: ${config.projectId}, DB: ${dbId || '(default)'}`);
+    }
+
     await syncFromFirestore();
   } catch (err) {
-    console.error("Failed to initialize Firebase/Firestore:", err);
-    firestoreDb = null;
+    console.warn("Failed to initialize Firebase/Firestore, using JSON database storage:", err);
+    firestoreBackend = null;
   }
 }
 

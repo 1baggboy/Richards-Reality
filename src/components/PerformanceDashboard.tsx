@@ -48,7 +48,7 @@ export default function PerformanceDashboard() {
 
         const dailyTrends = last7Days.map(date => {
           const dayEvents = events.filter(e => {
-            if (!e.timestamp) return false;
+            if (!e.timestamp || typeof e.timestamp.toDate !== 'function') return false;
             const eventDate = e.timestamp.toDate().toISOString().split('T')[0];
             return eventDate === date;
           });

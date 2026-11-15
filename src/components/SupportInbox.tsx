@@ -23,8 +23,12 @@ export default function SupportInbox() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageCountRef = useRef(0);
 
-  const visitorMsgSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'));
-  const adminSendSound = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
+  const visitorMsgSound = useRef<HTMLAudioElement | null>(
+    typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3') : null
+  );
+  const adminSendSound = useRef<HTMLAudioElement | null>(
+    typeof Audio !== 'undefined' ? new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3') : null
+  );
 
   const handleDownloadTranscript = () => {
     const activeThread = threads.find(t => t.id === activeThreadId);
@@ -122,15 +126,19 @@ export default function SupportInbox() {
         // Play sound for incoming visitor messages
         if (msgs.length > lastMessageCountRef.current) {
           const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg.sender === 'visitor') {
-            visitorMsgSound.current.play().catch(() => {});
+          if (lastMsg?.sender === 'visitor') {
+            visitorMsgSound.current?.play().catch(() => {});
           }
           lastMessageCountRef.current = msgs.length;
         }
         
         setMessages(msgs);
       }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, `supportThreads/${activeThreadId}/messages`);
+        try {
+          handleFirestoreError(error, OperationType.LIST, `supportThreads/${activeThreadId}/messages`);
+        } catch {
+          // Handled safely
+        }
       });
       return () => unsubscribe();
     } else {
@@ -175,7 +183,7 @@ export default function SupportInbox() {
     setIsAdminTyping(false);
 
     try {
-      adminSendSound.current.play().catch(() => {});
+      adminSendSound.current?.play().catch(() => {});
       
       await addDoc(collection(db, 'supportThreads', activeThreadId, 'messages'), {
         text: currentReply,

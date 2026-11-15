@@ -232,7 +232,7 @@ export default function Footer({ setTab, onBookClick, googleMapIframe, settings 
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 text-[#C5A02E] shrink-0" />
-                <a href={`tel:${settings?.general?.phone?.replace(/\s+/g, '') || "+18005550190"}`} className="text-gray-400 hover:text-white font-sans">
+                <a href={`tel:${String(settings?.general?.phone || "+18005550190").replace(/\s+/g, '')}`} className="text-gray-400 hover:text-white font-sans">
                   {settings?.general?.phone || "+1 (800) 555-0190"}
                 </a>
               </li>
