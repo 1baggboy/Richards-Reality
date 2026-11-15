@@ -1,6 +1,6 @@
 {
-  "name": "Richards Realty",
-  "description": "Professional corporate real estate consultancy website for Richards Realty LLC, featuring services, company background, and a secure administration dashboard.",
+  "name": "Howard Homes",
+  "description": "Professional corporate real estate consultancy website for Howard Homes LLC, featuring services, company background, and a secure administration dashboard.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

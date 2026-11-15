@@ -483,7 +483,7 @@ export default function TrackApplication({ initialQuery = '', onApplyClick, sett
 
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <a
-                      href={`mailto:${settings?.general?.email || 'consulting@richardsrealty.com'}?subject=Status%20Inquiry%20for%20Application%20${res.refNumber}`}
+                      href={`mailto:${settings?.general?.email || 'consultation.howardhomes@hotmail.com'}?subject=Status%20Inquiry%20for%20Application%20${res.refNumber}`}
                       className="w-full sm:w-auto px-5 py-3 bg-[#C5A02E] hover:bg-[#a88824] text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer text-center"
                     >
                       <Mail className="h-4 w-4" /> Contact Leasing Officer

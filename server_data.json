@@ -1,38 +1,38 @@
 {
   "settings": {
     "general": {
-      "companyName": "Richards Realty LLC",
+      "companyName": "Howard Homes LLC",
       "phone": "+1 (800) 555-0190",
-      "email": "consulting@richardsrealty.com",
-      "address": "600 Montgomery St, 41st Floor, San Francisco, CA 94111",
+      "email": "consultation.howardhomes@hotmail.com",
+      "address": "1995 Woodlake Dr, Orange Park, FL 32003, USA",
       "workingHours": "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment",
       "whatsappNumber": "18005550190",
       "googleMapIframe": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus"
     },
     "seo": {
-      "metaTitle": "Richards Realty LLC | Elite Corporate Real Estate Advisory & Valuation",
-      "metaDescription": "Richards Realty LLC is a premier corporate real estate consultancy. We provide investment advisory, property valuation, documentation, and facility management with absolute integrity.",
+      "metaTitle": "Howard Homes LLC | Elite Corporate Real Estate Advisory & Valuation",
+      "metaDescription": "Howard Homes LLC is a premier corporate real estate consultancy. We provide investment advisory, property valuation, documentation, and facility management with absolute integrity.",
       "openGraphImage": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&h=630&q=80"
     },
     "social": {
-      "linkedin": "https://linkedin.com/company/richardsrealty",
-      "twitter": "https://twitter.com/richardsrealty",
-      "facebook": "https://facebook.com/richardsrealty",
-      "instagram": "https://instagram.com/richardsrealty"
+      "linkedin": "https://linkedin.com/company/howardhomes",
+      "twitter": "https://twitter.com/howardhomes",
+      "facebook": "https://facebook.com/howardhomes",
+      "instagram": "https://instagram.com/howardhomes"
     },
     "content": {
       "heroHeadline": "Elite Corporate Real Estate & Valuation",
       "heroSubheadline": "Strategic advisory, regulatory compliance, and high-end brokerage for the corporate enterprise.",
       "heroImage": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80",
       "aboutHeadline": "The Standard of Commercial Excellence",
-      "aboutText": "Richards Realty LLC serves the elite echelons of corporate real estate. Our firm provides uncompromising analytical precision, from RICS-certified valuations to facility management consultation. We prioritize data-driven strategies, securing optimal transaction values while navigating complex regulatory landscapes.",
+      "aboutText": "Howard Homes LLC serves the elite echelons of corporate real estate. Our firm provides uncompromising analytical precision, from RICS-certified valuations to facility management consultation. We prioritize data-driven strategies, securing optimal transaction values while navigating complex regulatory landscapes.",
       "aboutImage": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
       "servicesHeadline": "Strategic Consulting Portfolios",
       "servicesSubheadline": "Our expertise spans across critical corporate real estate functions, maximizing portfolio performance.",
       "missionHeadline": "Our Mission & Vision",
-      "missionText": "How Richards Realty LLC builds trust and sets premium standards across California's real estate domains.",
+      "missionText": "How Howard Homes LLC builds trust and sets premium standards across California's real estate domains.",
       "teamHeadline": "Meet Our Professional Team",
-      "teamSubheadline": "Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Richards Realty LLC.",
+      "teamSubheadline": "Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Howard Homes LLC.",
       "faqs": [
         {
           "q": "What services do you provide?",
@@ -40,24 +40,49 @@
           "category": "Corporate"
         },
         {
-          "q": "How do I book a consultation?",
-          "a": "You can book a direct briefing by clicking \"Book Consultation\" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.",
+          "q": "How do I book a confidential corporate consultation?",
+          "a": "You can schedule a private briefing through our secure online scheduler or contact our senior partners directly via our corporate email. All initial discussions are bound by strict professional confidentiality agreements.",
           "category": "Corporate"
         },
         {
-          "q": "Do you sell or manage properties?",
-          "a": "No. We maintain strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services.",
+          "q": "Do you operate as a broker or property listing marketplace?",
+          "a": "No. Howard Homes LLC maintains strict fiduciary independence. We do not engage in retail brokerage, property management, or commercial listing platforms, ensuring our advice remains entirely objective.",
           "category": "Corporate"
         },
         {
-          "q": "Do you provide certified valuation reports?",
-          "a": "Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors.",
+          "q": "Are your valuation reports RICS Red Book compliant?",
+          "a": "Yes. All formal property valuations are executed by Royal Institution of Chartered Surveyors (RICS) qualified chartered surveyors adhering to international valuation standards (IVS).",
           "category": "Valuations"
         },
         {
-          "q": "What zoning and regulatory standards do you adhere to?",
-          "a": "Our advisory operates in strict compliance with California municipal real estate codes, zoning ordinances, and eminent domain guidelines.",
+          "q": "What valuation methodologies do you employ for income-producing assets?",
+          "a": "We utilize discounted cash flow (DCF) modeling, direct capitalization rate analysis, comparable sales metrics, and replacement cost approaches depending on asset class and market liquidity.",
+          "category": "Valuations"
+        },
+        {
+          "q": "Can your valuation reports be submitted to financial institutions and auditing committees?",
+          "a": "Yes. Our certified asset valuation dossiers are fully accepted by major commercial banks, syndicates, accounting auditors, and regulatory bodies for financing and reporting.",
+          "category": "Valuations"
+        },
+        {
+          "q": "What regulatory and municipal standards govern your legal audits?",
+          "a": "Our document and zoning audits operate in strict alignment with California real estate statutes, municipal zoning codes, environmental review mandates, and title verification protocols.",
           "category": "Legal"
+        },
+        {
+          "q": "How do you assist with eminent domain and zoning disputes?",
+          "a": "We provide expert witness testimony, property devaluation impact assessments, easement analysis, and strategic land-use advocacy to protect client interests during municipal proceedings.",
+          "category": "Legal"
+        },
+        {
+          "q": "What metrics are prioritized in investment underwriting?",
+          "a": "We analyze internal rate of return (IRR), net operating income (NOI), debt service coverage ratio (DSCR), capital expenditure reserves, and macroeconomic sensitivity indices.",
+          "category": "Investment"
+        },
+        {
+          "q": "How do ESG factors influence your real estate advisory?",
+          "a": "We integrate energy efficiency ratings, carbon tax compliance, and sustainability benchmarks into our valuation and underwriting models to protect against brown-discounting and obsolescence risk.",
+          "category": "Corporate"
         },
         {
           "q": "Are your valuation reports accepted by banking syndicates?",
@@ -66,12 +91,12 @@
         }
       ],
       "aboutPageHeadline": "Corporate Profile",
-      "aboutPageText": "Richards Realty LLC is a premier corporate advisory and valuation firm headquartered in San Francisco. We specialize in RICS-compliant valuations, commercial transaction consulting, and strategic facility management.",
+      "aboutPageText": "Howard Homes LLC is a premier corporate advisory and valuation firm headquartered in San Francisco. We specialize in RICS-compliant valuations, commercial transaction consulting, and strategic facility management.",
       "aboutPageStoryHeadline": "Our Legacy",
-      "aboutPageStoryText": "Founded on the principles of integrity and analytical rigor, Richards Realty LLC has spent over two decades advising institutional investors, family offices, and multinational corporations on their most complex real estate challenges.",
+      "aboutPageStoryText": "Founded on the principles of integrity and analytical rigor, Howard Homes LLC has spent over two decades advising institutional investors, family offices, and multinational corporations on their most complex real estate challenges.",
       "aboutPageMessageHeadline": "A Word From the Managing Director",
       "aboutPageMessageText": "Our commitment to excellence is unwavering. We navigate the complexities of the real estate market to deliver actionable insights and structural resilience for our clients.",
-      "aboutPageMessageAuthor": "Arthur Richards, Managing Director",
+      "aboutPageMessageAuthor": "Michael Howard, Managing Director",
       "missionCoreHeadline": "Our Core Mission",
       "missionCoreText": "To provide impartial, highly analytical, and strategic real estate advisory services that protect and enhance our clients' corporate assets and investment portfolios.",
       "missionVisionHeadline": "Market Vision",
@@ -88,11 +113,11 @@
       "careersSubheadline": "Join a culture of analytical excellence and absolute integrity. We are always looking for driven professionals.",
       "contactHeadline": "Contact Our Advisors",
       "contactSubheadline": "Schedule a confidential briefing with our senior partners to discuss your corporate real estate objectives.",
-      "footerText": "Richards Realty LLC operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.",
-      "privacyPolicyText": "Your privacy is paramount. We adhere to stringent data protection standards to safeguard all corporate and personal information entrusted to us during engagements.",
-      "termsOfServiceText": "By accessing this directory, you agree to our corporate terms of service. All content is for informational purposes and does not constitute formal financial or legal advice until an engagement letter is executed.",
-      "cookiePolicyText": "We use essential cookies to ensure the functionality and security of our digital platforms. We do not use third-party tracking for advertising purposes.",
-      "disclaimerText": "Valuations and advisory insights are subject to market volatility. Past performance and theoretical underwriting do not guarantee future yields."
+      "footerText": "Howard Homes LLC operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.",
+      "privacyPolicyText": "At Howard Homes LLC, we recognize that privacy and data security are paramount for our institutional, corporate, and private capital clients. This Privacy Policy outlines our uncompromising standards regarding the collection, protection, and processing of information across our digital platforms and advisory consultations.\n\n1. Information Collection & Purpose\nWe collect information strictly necessary for the execution of professional real estate advisory, certified valuations, and consultation bookings. This includes corporate contact identifiers (names, corporate emails, telephone numbers), property verification parameters, and encrypted authentication records. We do not engage in unauthorized profiling, behavioral tracking, or commercial data aggregation.\n\n2. Security & Encryption Standards\nAll data transmitted via our encrypted web portals, application forms, and consultation schedulers is protected using robust transport layer security (TLS) encryption and secure server sandboxing. Physical and digital records are stored in restricted-access environments compliant with California data privacy standards and federal security guidelines.\n\n3. Confidentiality & Non-Disclosure\nClient engagements are bound by strict professional privilege. Financial records, zoning inquiries, valuation drafts, and personal identification documents uploaded during application processes are accessible solely by authorized senior advisory personnel and are never sold, rented, or distributed to third-party marketing entities.\n\n4. Client Rights & Inquiries\nClients retain full rights to request access to, correction of, or permanent deletion of their archived submission records. For privacy inquiries or data compliance requests, contact our Compliance Officer at consultation.howardhomes@hotmail.com.",
+      "termsOfServiceText": "Welcome to the Howard Homes LLC corporate website and advisory directory. By accessing, browsing, or utilizing our digital platforms, you agree to comply with and be bound by the following comprehensive Terms of Service.\n\n1. Corporate Informational Purpose\nThe materials, research briefs, valuation methodologies, and advisory frameworks presented on this website serve purely as professional corporate informational guides. Accessing this site does not establish a formal advisory relationship, fiduciary obligation, or contractual retainer until a formal engagement letter or retainer agreement is executed in writing by authorized officers of Howard Homes LLC.\n\n2. Intellectual Property Rights\nAll proprietary content, brand emblems, analytical frameworks, graphical layouts, and written briefs published on this platform are the exclusive intellectual property of Howard Homes LLC. Unauthorized reproduction, republication, or commercial dissemination is strictly prohibited under federal copyright laws.\n\n3. Fiduciary Independence & Scope\nHoward Homes LLC operates strictly as an independent corporate advisory and valuation consultancy. We maintain an uncompromising structural boundary: we do not operate retail brokerage lists, commercial property rental portfolios, or open marketplace listing platforms. All advice provided is impartial, objective, and free from brokerage conflicts of interest.\n\n4. Limitation of Liability\nHoward Homes LLC, its managing partners, and chartered surveyors shall not be held liable for any direct, indirect, incidental, or consequential damages arising from the use of, or reliance upon, informational briefs or preliminary underwriting models provided herein without direct professional verification.",
+      "cookiePolicyText": "Howard Homes LLC maintains a transparent and conservative approach to digital cookies and session tracking, ensuring absolute user confidentiality.\n\n1. Essential Session Cookies\nOur website utilizes strictly essential session tokens and authentication cookies necessary for core platform security, administrative login verification, and seamless navigation across secure portals. These cookies do not track individual browsing habits across external websites.\n\n2. Absence of Tracking Pixels & Advertising Cookies\nWe do not deploy third-party advertising cookies, behavioral tracking pixels, social media remarketing tags, or commercial monetization scripts. Your visit to our corporate directory remains completely confidential and unmonitored by external data brokers.\n\n3. Managing Cookie Preferences\nUsers may configure their web browser settings to block or delete cookies; however, disabling essential session cookies may restrict access to secure administrative modules and client portal verification tools.",
+      "disclaimerText": "The financial analyses, market insights, valuation estimates, and regulatory summaries published by Howard Homes LLC are subject to ongoing economic shifts, commercial real estate market volatility, and municipal regulatory updates.\n\n1. No Guarantee of Future Yields\nPast market performance, historical capitalization rates, and theoretical investment underwriting models do not guarantee future yields, asset valuations, or investment returns. Real estate investments carry inherent market risks requiring individualized due diligence.\n\n2. Professional Verification Required\nAdvisory briefings, zoning audits, and preliminary valuation summaries do not substitute for formal, certified RICS Red Book appraisals or legal counsel. Clients are strictly advised to commission custom site-specific surveys and formal contractual engagements prior to committing capital."
     },
     "styling": {
       "primaryColor": "#0A1D37",
@@ -141,45 +166,63 @@
   "team": [
     {
       "id": "team-1",
-      "name": "Richard V. Henderson",
-      "position": "Founder & Managing Partner",
-      "bio": "With over 25 years of institutional real estate consultancy, Richard leads the strategic vision at Richards Realty LLC. Former Senior Vice President of Institutional Capital Markets at a top global firm, he specializes in high-value asset valuation and commercial investment advisory.",
-      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80",
-      "linkedin": "https://linkedin.com/in/placeholder",
-      "email": "r.henderson@richardsrealty.com"
+      "name": "Michael Howard",
+      "position": "Owner & Broker",
+      "bio": "With over 25 years of institutional real estate consultancy, Michael leads the strategic vision at Howard Homes LLC. Former Senior Vice President of Institutional Capital Markets at a top global firm, he specializes in high-value asset valuation and commercial investment advisory.",
+      "image": "https://res.cloudinary.com/dctaerfma/image/upload/v1794418821/WhatsApp_Image_2026-11-11_at_11.19.58_AM_c9zxzx.jpg",
+      "linkedin": "https://linkedin.com/in/michaelhoward",
+      "email": "m.howard@howardhomes.com"
     },
     {
       "id": "team-2",
       "name": "Elena Rostova, MRICS",
       "position": "Partner, Head of Valuations",
       "bio": "Elena is a chartered valuation surveyor with 18 years of experience. She heads our RICS-compliant valuations department, providing certified asset valuation reports for financial institutions, national developers, and corporate audits.",
-      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80",
-      "linkedin": "https://linkedin.com/in/placeholder",
-      "email": "e.rostova@richardsrealty.com"
+      "image": "https://res.cloudinary.com/dctaerfma/image/upload/v1794418822/WhatsApp_Image_2026-11-11_at_11.20.39_AM_uzydfu.jpg",
+      "linkedin": "https://linkedin.com/in/elenarostova",
+      "email": "e.rostova@howardhomes.com"
     },
     {
       "id": "team-3",
-      "name": "Marcus Vance",
+      "name": "Richard V. Henderson",
       "position": "Director of Corporate Consultancy",
-      "bio": "Marcus has structured lease-and-portfolio transactions for Fortune 500 tech and industrial leaders. He leads our corporate advisory branch, advising clients on optimal corporate headquarters footprint planning and landlord-tenant strategies.",
+      "bio": "Richard has structured lease-and-portfolio transactions for Fortune 500 tech and industrial leaders. He leads our corporate advisory branch, advising clients on optimal corporate headquarters footprint planning and landlord-tenant strategies.",
       "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&h=400&q=80",
-      "linkedin": "https://linkedin.com/in/placeholder",
-      "email": "m.vance@richardsrealty.com"
+      "linkedin": "https://linkedin.com/in/richardvance",
+      "email": "richard.vance@howardhomes.com"
     },
     {
       "id": "team-4",
-      "name": "Sarah Jenkins, Esq.",
-      "position": "Senior Legal Counsel",
-      "bio": "Admitted to the California Bar with 12 years specializing in municipal zoning, real estate transactions, and property documentation audits. Sarah protects our clients' legal interest in complex asset acquisitions and structures land registry audits.",
-      "image": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80",
-      "linkedin": "https://linkedin.com/in/placeholder",
-      "email": "s.jenkins@richardsrealty.com"
+      "name": "Vanessa Palmer",
+      "position": "Real Estate Assistant",
+      "bio": "Vannessa Palmer is a dedicated and detail-oriented Real Estate Assistant committed to providing excellent administrative and client support. She assists with property listings, client inquiries, documentation, property viewings, and coordinating real estate transactions. With strong communication, organisational, and interpersonal skills, she helps ensure smooth daily operations while delivering a professional and positive experience for clients.",
+      "image": "https://res.cloudinary.com/dctaerfma/image/upload/v1794418821/WhatsApp_Image_2026-11-11_at_11.25.45_AM_j0zgeq.jpg",
+      "linkedin": "https://linkedin.com/in/vanessapalmer",
+      "email": "v.palmer@howardhomes.com"
+    },
+    {
+      "id": "team-5",
+      "name": "Kayle Conor",
+      "position": "Real Estate Assistant",
+      "bio": "Kayle Conor is a proactive and organised Real Estate Assistant with a passion for property management and client relations. She supports property listings, coordinates viewings, handles client inquiries, and assists with real estate documentation. Known for her professionalism, attention to detail, and excellent communication skills, she helps ensure efficient operations and client satisfaction.",
+      "image": "https://res.cloudinary.com/dctaerfma/image/upload/v1794418821/WhatsApp_Image_2026-11-11_at_11.26.50_AM_zwfbup.jpg",
+      "linkedin": "https://linkedin.com/in/kayleconor",
+      "email": "k.conor@howardhomes.com"
+    },
+    {
+      "id": "team-6",
+      "name": "Mike Geraad",
+      "position": "Maintenance Technician",
+      "bio": "Mike Geraad is a skilled and reliable Maintenance Technician responsible for ensuring that facilities, equipment, and building systems remain in excellent working condition. He handles routine inspections, repairs, troubleshooting, and preventive maintenance. With strong technical abilities, attention to detail, and a commitment to safety, he helps maintain a clean, safe, and efficient working environment.",
+      "image": "https://res.cloudinary.com/dctaerfma/image/upload/v1794418822/WhatsApp_Image_2026-11-11_at_11.27.22_AM_fskemx.jpg",
+      "linkedin": "https://linkedin.com/in/mikegeraad",
+      "email": "mike.g@howardhomes.com"
     }
   ],
   "gallery": [
     {
       "id": "gal-1",
-      "title": "Richards Realty Headquarters - Boardroom",
+      "title": "Howard Homes Headquarters - Boardroom",
       "category": "Office",
       "image": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"
     },
@@ -209,7 +252,7 @@
     },
     {
       "id": "gal-6",
-      "title": "Richards Executive Committee Workshop",
+      "title": "Howard Executive Committee Workshop",
       "category": "Team Activities",
       "image": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
     }
@@ -219,14 +262,14 @@
       "id": "test-1",
       "name": "Executive Director",
       "company": "Apex Global Holdings",
-      "review": "Richards Realty LLC conducted a comprehensive valuation audit of our West Coast commercial real estate portfolio. Their RICS-certified reports were incredibly thorough, enabling us to secure a major restructuring with our banking syndicate. Absolutely premier service.",
+      "review": "Howard Homes LLC conducted a comprehensive valuation audit of our West Coast commercial real estate portfolio. Their RICS-certified reports were incredibly thorough, enabling us to secure a major restructuring with our banking syndicate. Absolutely premier service.",
       "rating": 5
     },
     {
       "id": "test-2",
       "name": "VP of Asset Management",
       "company": "Metropolitan Insurance Group",
-      "review": "The investment advisory team at Richards Realty provides deep quantitative insights that go far beyond standard market reports. They understand institutional risk, regulatory pressures, and yield management.",
+      "review": "The investment advisory team at Howard Homes provides deep quantitative insights that go far beyond standard market reports. They understand institutional risk, regulatory pressures, and yield management.",
       "rating": 5
     },
     {
@@ -300,7 +343,7 @@
       "message": "--- OFFICIAL RESIDENTIAL RENTAL APPLICATION DOSSIER ---\nPROPERTY REQUESTED: 600 Rustic Pine Court Florida Orlando (Move-in: 2026-12-11, Term: 12 Months)\n\nAPPLICANT PERSONAL DETAILS:\nFull Name: Adams Paul Alex\nEmail: changeclass0@gmail.com | Phone: 3408747029\nDOB: 1997-12-18 | Marital Status: Single | Total Occupants: 1\nID / SSN: Provided (Encrypted & Verified)\n\nRESIDENTIAL HISTORY:\nCurrent Address: 651 N Broad Street (2 Years)\nCurrent Rent: $2400/mo | Landlord: Mr. Thompson (18432592584)\nReason for Leaving: Job Relocation\n\nEMPLOYMENT & FINANCIAL PROFILE:\nStatus: Full-time Employee | Employer: White Fox Lounge\nTitle: N/A | Supervisor Phone: +2348156927589\nGross Monthly Income: $8500/mo\nAdditional Funds: None\nBank: N/A\n\nCO-APPLICANTS & PETS:\nCo-Applicants: None\nMinor Occupants: None\nPets: None\n\nEMERGENCY CONTACT:\nName: Taiye Samuel Seriki (Contact) | Phone: 18432592584 | Email: N/A\n\nLEGAL DISCLOSURES:\nEvictions: No | Bankruptcy: No | Felony: No | Smoker: No\nUploaded Attachments: Income_Proof.pdf, Government_ID.pdf\nDigital Signature: aam (Executed on 2026-11-11)",
       "status": "cancelled",
       "consultationMethod": "physical",
-      "assignedTo": "Arthur Richards (Managing Partner)",
+      "assignedTo": "Michael Howard (Managing Partner)",
       "createdAt": "2026-11-11T14:00:25.561Z",
       "updatedAt": "2026-11-11T14:20:13.052Z"
     }
@@ -312,7 +355,7 @@
     {
       "id": "log-1794420117619-326",
       "action": "Admin Authorization",
-      "details": "Successful login for account: admin@richardsrealty.com",
+      "details": "Successful login for account: admin@howardhomes.com",
       "timestamp": "2026-11-11T18:01:57.619Z"
     },
     {
@@ -324,7 +367,7 @@
     {
       "id": "log-1794419586637-654",
       "action": "Admin Authorization",
-      "details": "Successful login for account: admin@richardsrealty.com",
+      "details": "Successful login for account: admin@howardhomes.com",
       "timestamp": "2026-11-11T17:53:06.637Z"
     },
     {
@@ -336,7 +379,7 @@
     {
       "id": "log-1794411025145-228",
       "action": "Admin Authorization",
-      "details": "Successful login for account: admin@richardsrealty.com",
+      "details": "Successful login for account: admin@howardhomes.com",
       "timestamp": "2026-11-11T15:30:25.145Z"
     },
     {
@@ -360,7 +403,7 @@
     {
       "id": "log-1794405654022-768",
       "action": "Admin Authorization",
-      "details": "Successful login for account: admin@richardsrealty.com",
+      "details": "Successful login for account: admin@howardhomes.com",
       "timestamp": "2026-11-11T14:00:54.022Z"
     },
     {
@@ -421,7 +464,7 @@
       "tags": [
         "Consultation Client"
       ],
-      "assignedAdmin": "Arthur Richards (Managing Partner)",
+      "assignedAdmin": "Michael Howard (Managing Partner)",
       "registrationDate": "2026-11-11T14:05:00.521Z",
       "lastActive": "2026-11-11T15:31:00.634Z",
       "notes": ""
@@ -436,7 +479,7 @@
       "tags": [
         "Consultation Client"
       ],
-      "assignedAdmin": "Arthur Richards (Managing Partner)",
+      "assignedAdmin": "Michael Howard (Managing Partner)",
       "registrationDate": "2026-11-11T13:52:08.775Z",
       "lastActive": "2026-11-11T14:20:13.052Z",
       "notes": ""

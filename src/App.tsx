@@ -35,6 +35,13 @@ export default function App() {
   useEffect(() => {
     const handleGmpQuota = () => setGmpQuotaExceeded(true);
     window.addEventListener('gmp-quota-exceeded', handleGmpQuota);
+    
+    // Check standalone admin URL trigger (e.g. ?admin=true or #admin or /admin)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === 'true' || window.location.hash === '#admin' || window.location.pathname.includes('/admin')) {
+      setIsAdminOpen(true);
+    }
+
     return () => window.removeEventListener('gmp-quota-exceeded', handleGmpQuota);
   }, []);
 
@@ -59,17 +66,17 @@ export default function App() {
   // Dynamic state loaded from the backend APIs
   const [settings, setSettings] = useState<WebsiteSettings>({
     general: {
-      companyName: "Richards Realty LLC",
+      companyName: "Howard Homes LLC",
       phone: "+1 (800) 555-0190",
-      email: "consulting@richardsrealty.com",
-      address: "600 Montgomery St, 41st Floor, San Francisco, CA 94111",
+      email: "consultation.howardhomes@hotmail.com",
+      address: "1995 Woodlake Dr, Orange Park, FL 32003, USA",
       workingHours: "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment",
       whatsappNumber: "18005550190",
       googleMapIframe: ""
     },
     seo: {
-      metaTitle: "Richards Realty LLC | Elite Corporate Real Estate Advisory & Valuation",
-      metaDescription: "Richards Realty LLC is a premier corporate real estate consultancy.",
+      metaTitle: "Howard Homes LLC | Elite Corporate Real Estate Advisory & Valuation",
+      metaDescription: "Howard Homes LLC is a premier corporate real estate consultancy.",
       openGraphImage: ""
     },
     social: { linkedin: "", twitter: "", facebook: "", instagram: "" }
@@ -383,12 +390,12 @@ export default function App() {
             {/* About brief teaser section */}
             <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
               <div className="lg:col-span-6 space-y-6">
-                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">ABOUT RICHARDS REALTY</span>
+                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">ABOUT HOWARD HOMES</span>
                 <h2 className="font-serif font-bold text-3xl sm:text-4xl text-[#0A1D37] dark:text-white tracking-tight leading-tight whitespace-pre-line">
                   {settings.content?.aboutHeadline || "Over a Quarter Century of Elite Commercial Real Estate Mastery"}
                 </h2>
                 <p className="text-gray-500 dark:text-slate-400 text-sm leading-relaxed whitespace-pre-line">
-                  {settings.content?.aboutText || "Established in California, Richards Realty LLC is an accredited advisory firm providing commercial zoning, underwriting audits, facility intelligence, and certified valuations. We strictly operate as a premium corporate consultancy.\n\nWe maintain absolute structural boundaries: we represent enterprise acquisitions under total fiduciary loyalty and never operate commercial marketplace lists or retail portals."}
+                  {settings.content?.aboutText || "Established in California, Howard Homes LLC is an accredited advisory firm providing commercial zoning, underwriting audits, facility intelligence, and certified valuations. We strictly operate as a premium corporate consultancy.\n\nWe maintain absolute structural boundaries: we represent enterprise acquisitions under total fiduciary loyalty and never operate commercial marketplace lists or retail portals."}
                 </p>
                 <div className="pt-2">
                   <button 
@@ -463,8 +470,8 @@ export default function App() {
             {/* Why Choose Section */}
             <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
               <div className="text-center space-y-3">
-                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">THE RICHARDS DIFFERENCE</span>
-                <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] dark:text-white tracking-tight">Why Choose {settings.general?.companyName || "Richards Realty LLC"}</h3>
+                <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest block font-bold">THE HOWARD DIFFERENCE</span>
+                <h3 className="font-serif font-extrabold text-3xl sm:text-4xl text-[#0A1D37] dark:text-white tracking-tight">Why Choose {settings.general?.companyName || "Howard Homes LLC"}</h3>
                 <p className="max-w-xl mx-auto text-gray-500 dark:text-slate-400 text-xs sm:text-sm">
                   We elevate structural integrity to the center of our advisory business. Discover how we protect your long-term capital assets.
                 </p>
@@ -654,55 +661,110 @@ export default function App() {
 
         {/* 2. ABOUT TAB */}
         {currentTab === 'about' && (
-          <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
-            <div className="space-y-3">
-              <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">CORPORATE PROFILE</span>
-              <h2 className="font-serif font-bold text-4xl text-[#0A1D37] dark:text-white tracking-tight">{settings?.content?.aboutPageHeadline || `About ${settings.general?.companyName || "Richards Realty LLC"}`}</h2>
-              <p className="max-w-2xl text-gray-500 dark:text-slate-400 text-sm whitespace-pre-line">
-                {settings?.content?.aboutPageText || "A premium, client-aligned advisory specializing in commercial zoning audits, municipal registries, facility operations, and RICS Red Book compliant valuations."}
-              </p>
-            </div>
-
-            {/* Timelines and grid splits */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-              <div className="lg:col-span-6 space-y-6">
-                <h3 className="font-serif font-extrabold text-2xl text-[#0A1D37] dark:text-white tracking-tight">{settings?.content?.aboutPageStoryHeadline || "Our Corporate Story"}</h3>
-                <p className="text-gray-500 dark:text-slate-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line">
-                  {settings?.content?.aboutPageStoryText || `${settings.general?.companyName || "Richards Realty LLC"} was established as an independent alternative to large, transaction-driven real estate brokerages. Seeing a conflict of interest in agencies that represent both buyers and sellers while seeking sales commission incentives, we chose to design a fee-only, fiduciary-aligned corporate consultancy.
-
-Over the past 25 years, we have structured acquisition reviews, verified environmental compliance criteria, secured zoning approvals, and published certified RICS valuation books for pension schemes, corporate boards, and family offices.`}
-                </p>
-              </div>
-              <div className="lg:col-span-6 space-y-4 bg-[#F4F7F9]/40 dark:bg-slate-900/40 p-6 sm:p-8 rounded-none border border-gray-200 dark:border-slate-800">
-                <span className="text-[#C5A02E] font-sans text-[10px] uppercase font-bold block tracking-wider">{settings?.content?.aboutPageMessageHeadline || "A Message from our CEO"}</span>
-                <p className="text-[#0A1D37] dark:text-slate-200 text-xs italic leading-relaxed whitespace-pre-line">
-                  "{settings?.content?.aboutPageMessageText || `At ${settings.general?.companyName || "Richards Realty LLC"}, we believe that real estate excellence is built upon absolute transparency and fiduciary loyalty. We have chosen never to participate in listing markets or transaction brokerages to maintain completely objective advice for our clients. That is our structural ceiling, and it remains our absolute pride.`}"
-                </p>
-                <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
-                  <p className="text-xs font-bold text-[#0A1D37] dark:text-white">{settings?.content?.aboutPageMessageAuthor?.split(',')[0] || "Richard V. Henderson"}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-sans">{settings?.content?.aboutPageMessageAuthor?.split(',')[1]?.trim() || "Founding Partner & Chief Executive Officer"}</p>
+          <div className={`space-y-16 pb-20 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'}`}>
+            
+            {/* Sleek Hero Header Banner */}
+            <div className="bg-[#0A1D37] text-white py-16 px-4 sm:px-6 lg:px-8 border-b-4 border-[#C5A02E] shadow-xl relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#C5A02E_1px,transparent_1px)] [background-size:16px_16px]"></div>
+              <div className="max-w-7xl mx-auto relative z-10 space-y-4">
+                <div className="inline-flex items-center gap-2 bg-[#C5A02E]/20 border border-[#C5A02E]/40 px-3 py-1 text-[11px] font-mono font-bold text-[#C5A02E] uppercase tracking-widest">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Corporate Excellence & Fiduciary Integrity
                 </div>
+                <h1 className="font-serif font-extrabold text-3xl sm:text-5xl text-white tracking-tight">
+                  {settings?.content?.aboutPageHeadline || `About ${settings.general?.companyName || "Howard Homes LLC"}`}
+                </h1>
+                <p className="max-w-3xl text-gray-300 text-sm sm:text-base leading-relaxed whitespace-pre-line font-sans">
+                  {settings?.content?.aboutPageText || "A premier, client-aligned advisory specializing in commercial zoning audits, municipal registries, facility operations, and RICS Red Book compliant valuations."}
+                </p>
               </div>
             </div>
 
-            {/* Timeline component */}
-            <div className="space-y-8 pt-8">
-              <span className="text-xs text-[#0A1D37] dark:text-white font-bold uppercase tracking-wider block">Company Timeline</span>
-              <div className="relative border-l border-gray-300 dark:border-slate-800 ml-4 space-y-10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
+
+              {/* KPI Metrics Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { yr: '2001', title: 'Firm Conception', desc: 'Richard Henderson establishes the firm in San Francisco, dedicating resources strictly to fee-only capital underwriting and zoning advisory.' },
-                  { yr: '2009', title: 'Valuations Expansion', desc: 'Elena Rostova joins the leadership panel, launching our RICS Red Book compliant commercial valuations department.' },
-                  { yr: '2016', title: 'Corporate Footprint Planning', desc: 'Advisory footprints expand nationally, offering Fortune 500 tech firms advisory in restructuring complex hub offices.' },
-                  { yr: '2026', title: 'Modern GIS Integrations', desc: 'Integrating geographical mapping models for carbon audit compliance and environmental valuation offsets.' }
-                ].map((item, idx) => (
-                  <div key={idx} className="relative pl-8">
-                    <div className="absolute -left-1.5 top-1.5 h-3.5 w-3.5 bg-[#C5A02E] rounded-full border-4 border-white dark:border-slate-950"></div>
-                    <span className="text-[#C5A02E] font-sans text-sm font-bold block tabular-nums">{item.yr}</span>
-                    <h4 className="font-serif font-bold text-sm text-[#0A1D37] dark:text-white pt-0.5">{item.title}</h4>
-                    <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed max-w-2xl mt-0.5">{item.desc}</p>
+                  { label: 'Years of Excellence', val: '25+' },
+                  { label: 'Fiduciary Independence', val: '100%' },
+                  { label: 'RICS Standards', val: 'Certified' },
+                  { label: 'Brokerage Conflict', val: 'Zero' }
+                ].map((stat, idx) => (
+                  <div key={idx} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 shadow-md text-center space-y-1 hover:border-[#C5A02E] transition-colors">
+                    <p className="font-serif font-extrabold text-2xl sm:text-3xl text-[#0A1D37] dark:text-[#C5A02E]">{stat.val}</p>
+                    <p className="text-[11px] font-sans font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">{stat.label}</p>
                   </div>
                 ))}
               </div>
+
+              {/* Timelines and grid splits */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                <div className="lg:col-span-6 space-y-6">
+                  <div className="w-10 h-1 bg-[#C5A02E]"></div>
+                  <h3 className="font-serif font-extrabold text-3xl text-[#0A1D37] dark:text-white tracking-tight">{settings?.content?.aboutPageStoryHeadline || "Our Corporate Story"}</h3>
+                  <p className="text-gray-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line">
+                    {settings?.content?.aboutPageStoryText || `${settings.general?.companyName || "Howard Homes LLC"} was established as an independent alternative to large, transaction-driven real estate brokerages. Seeing a conflict of interest in agencies that represent both buyers and sellers while seeking sales commission incentives, we chose to design a fee-only, fiduciary-aligned corporate consultancy.
+
+Over the past 25 years, we have structured acquisition reviews, verified environmental compliance criteria, secured zoning approvals, and published certified RICS valuation books for pension schemes, corporate boards, and family offices.`}
+                  </p>
+                </div>
+                <div className="lg:col-span-6 space-y-5 bg-[#0A1D37] text-white p-8 sm:p-10 shadow-2xl relative border-l-4 border-[#C5A02E]">
+                  <span className="text-[#C5A02E] font-sans text-xs uppercase font-bold tracking-widest block">{settings?.content?.aboutPageMessageHeadline || "A Message from our Managing Director"}</span>
+                  <p className="text-gray-200 text-xs sm:text-sm italic leading-relaxed whitespace-pre-line font-serif">
+                    "{settings?.content?.aboutPageMessageText || `At ${settings.general?.companyName || "Howard Homes LLC"}, we believe that real estate excellence is built upon absolute transparency and fiduciary loyalty. We have chosen never to participate in listing markets or transaction brokerages to maintain completely objective advice for our clients. That is our structural ceiling, and it remains our absolute pride.`}"
+                  </p>
+                  <div className="pt-4 border-t border-slate-700">
+                    <p className="text-xs font-bold text-white uppercase tracking-wider">{settings?.content?.aboutPageMessageAuthor?.split(',')[0] || "Michael Howard"}</p>
+                    <p className="text-[10px] text-[#C5A02E] font-sans font-semibold pt-0.5">{settings?.content?.aboutPageMessageAuthor?.split(',')[1]?.trim() || "Managing Director & Principal Valuer"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Core Principles 3-Col Grid */}
+              <div className="space-y-8">
+                <div className="text-center space-y-2">
+                  <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold">OUR PILLARS</span>
+                  <h3 className="font-serif font-extrabold text-3xl text-[#0A1D37] dark:text-white">Core Operational Principles</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {[
+                    { title: 'Absolute Independence', desc: 'Zero brokerage incentives or retail listing commissions. Our advice is strictly fee-only and aligned solely with client objectives.' },
+                    { title: 'Rigorous Underwriting', desc: 'Advanced discounted cash flow (DCF) modeling and RICS Red Book compliant asset valuations ensuring institutional-grade accuracy.' },
+                    { title: 'Regulatory Mastery', desc: 'Deep expertise in California municipal zoning codes, environmental compliance, eminent domain, and land-use entitlements.' }
+                  ].map((p, idx) => (
+                    <div key={idx} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-8 shadow-xl space-y-4 hover:border-[#C5A02E] transition-all">
+                      <div className="w-10 h-10 bg-[#C5A02E]/10 text-[#C5A02E] flex items-center justify-center font-bold font-mono text-sm">
+                        0{idx + 1}
+                      </div>
+                      <h4 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white">{p.title}</h4>
+                      <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed">{p.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Timeline component */}
+              <div className="space-y-8 pt-6">
+                <div className="border-b border-gray-200 dark:border-slate-800 pb-4">
+                  <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">MILESTONES</span>
+                  <h3 className="font-serif font-extrabold text-2xl text-[#0A1D37] dark:text-white">Corporate Historical Timeline</h3>
+                </div>
+                <div className="relative border-l-2 border-[#C5A02E]/40 ml-4 space-y-12 py-2">
+                  {[
+                    { yr: '2001', title: 'Firm Conception', desc: 'Established in San Francisco, dedicating resources strictly to fee-only capital underwriting and zoning advisory.' },
+                    { yr: '2009', title: 'Valuations Expansion', desc: 'Launched our RICS Red Book compliant commercial asset valuations department for institutional lenders.' },
+                    { yr: '2016', title: 'National Advisory Footprint', desc: 'Expanded corporate advisory operations across major west coast commercial hubs.' },
+                    { yr: '2026', title: 'Modern GIS & ESG Integrations', desc: 'Integrated advanced geographical mapping models for carbon audit compliance and environmental valuation offsets.' }
+                  ].map((item, idx) => (
+                    <div key={idx} className="relative pl-8">
+                      <div className="absolute -left-[9px] top-1.5 h-4 w-4 bg-[#0A1D37] dark:bg-[#C5A02E] rounded-full border-4 border-white dark:border-slate-900 shadow-sm"></div>
+                      <span className="text-[#C5A02E] font-mono text-xs font-bold block tracking-wider">{item.yr}</span>
+                      <h4 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white pt-1">{item.title}</h4>
+                      <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed max-w-3xl mt-1">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -810,7 +872,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">FOUNDING MOTIVATIONS</span>
               <h2 className="font-serif font-extrabold text-4xl text-[#0A1D37] dark:text-white tracking-tight">{settings?.content?.missionHeadline || "Our Mission & Vision"}</h2>
               <p className="max-w-lg mx-auto text-gray-500 dark:text-slate-400 text-xs sm:text-sm whitespace-pre-line">
-                {settings?.content?.missionText || `How ${settings.general?.companyName || "Richards Realty LLC"} builds trust and sets premium standards across California's real estate domains.`}
+                {settings?.content?.missionText || `How ${settings.general?.companyName || "Howard Homes LLC"} builds trust and sets premium standards across California's real estate domains.`}
               </p>
             </div>
 
@@ -859,7 +921,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
               <span className="text-[#C5A02E] font-sans text-xs uppercase tracking-widest font-bold block">PARTNERS & ADVISORS</span>
               <h2 className="font-serif font-bold text-4xl text-[#0A1D37] dark:text-white tracking-tight">{settings?.content?.teamHeadline || "Meet Our Professional Team"}</h2>
               <p className="max-w-2xl text-gray-500 dark:text-slate-400 text-sm whitespace-pre-line">
-                {settings?.content?.teamSubheadline || `Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of ${settings.general?.companyName || "Richards Realty LLC"}.`}
+                {settings?.content?.teamSubheadline || `Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of ${settings.general?.companyName || "Howard Homes LLC"}.`}
               </p>
             </div>
 
@@ -1265,7 +1327,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
         {currentTab === 'privacy' && (
           <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Privacy Policy</h2>
-            <p className="whitespace-pre-line">{settings?.content?.privacyPolicyText || `At ${settings.general?.companyName || "Richards Realty LLC"}, we respect the absolute privacy of our institutional and private capital clients. All consultation requests, municipal documentation, and correspondence transmitted via our contact forms are stored securely within local sandboxed networks.
+            <p className="whitespace-pre-line">{settings?.content?.privacyPolicyText || `At ${settings.general?.companyName || "Howard Homes LLC"}, we respect the absolute privacy of our institutional and private capital clients. All consultation requests, municipal documentation, and correspondence transmitted via our contact forms are stored securely within local sandboxed networks.
 
 We do not operate tracking cookie pools, nor do we disclose or sell client identities or real estate portfolios to third-party marketplaces or promotional agencies.`}</p>
           </div>
@@ -1276,21 +1338,21 @@ We do not operate tracking cookie pools, nor do we disclose or sell client ident
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37]">Terms of Service</h2>
             <p className="whitespace-pre-line">{settings?.content?.termsOfServiceText || `The materials, briefs, and valuation methodologies presented on this corporate website serve purely as informational guides. Underwriting models, zoning legal advice, and certified surveys require direct contractual agreements under real estate NDAs.
 
-By engaging with this website, you acknowledge that ${settings.general?.companyName || "Richards Realty LLC"} does not act as a licensed property listing broker or transactional agency.`}</p>
+By engaging with this website, you acknowledge that ${settings.general?.companyName || "Howard Homes LLC"} does not act as a licensed property listing broker or transactional agency.`}</p>
           </div>
         )}
 
         {currentTab === 'cookies' && (
           <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 dark:text-slate-400 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Cookie Policy</h2>
-            <p className="whitespace-pre-line">{settings?.content?.cookiePolicyText || `${settings.general?.companyName || "Richards Realty LLC"} utilizes simple functional session tokens to secure administration dashboard access. We do not engage in tracking pixels, commercial profiling, or third-party advertising cookie networks.`}</p>
+            <p className="whitespace-pre-line">{settings?.content?.cookiePolicyText || `${settings.general?.companyName || "Howard Homes LLC"} utilizes simple functional session tokens to secure administration dashboard access. We do not engage in tracking pixels, commercial profiling, or third-party advertising cookie networks.`}</p>
           </div>
         )}
 
         {currentTab === 'disclaimer' && (
           <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-6 ${settings?.styling?.animationStyle || 'animate-in fade-in duration-200'} text-gray-500 dark:text-slate-400 text-xs sm:text-sm leading-relaxed`}>
             <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Disclaimer</h2>
-            <p className="whitespace-pre-line">{settings?.content?.disclaimerText || `${settings.general?.companyName || "Richards Realty LLC"} operates strictly under California municipal laws. Any content, blog analytical paper, or outline of zoning processes does not represent statutory tax or final legal zoning decisions. Clients are strictly advised to undergo direct custom surveys for certified audits.`}</p>
+            <p className="whitespace-pre-line">{settings?.content?.disclaimerText || `${settings.general?.companyName || "Howard Homes LLC"} operates strictly under California municipal laws. Any content, blog analytical paper, or outline of zoning processes does not represent statutory tax or final legal zoning decisions. Clients are strictly advised to undergo direct custom surveys for certified audits.`}</p>
           </div>
         )}
 
@@ -1331,7 +1393,7 @@ By engaging with this website, you acknowledge that ${settings.general?.companyN
       </main>
 
       {/* Corporate Footer Section */}
-      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} onAdminClick={() => setIsAdminOpen(true)} googleMapIframe={settings.general.googleMapIframe} settings={settings} />
+      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} googleMapIframe={settings.general.googleMapIframe} settings={settings} />
 
       {/* Floating Back to Top Button */}
       {showScrollTop && (

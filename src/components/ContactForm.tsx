@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, MessageSquare, CheckCircle2, ShieldAlert } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Mail, Phone, MapPin, Clock, MessageSquare, CheckCircle2, ShieldAlert, Check } from 'lucide-react';
 import { useToast } from './ui/Toast';
 import { WebsiteSettings } from '../types';
+import { isValidEmail, isValidPhone } from '../lib/validation';
 
 interface ContactFormProps {
   settings?: WebsiteSettings;
@@ -18,29 +19,82 @@ export default function ContactForm({ settings }: ContactFormProps) {
     captcha: '',
   });
 
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const fieldErrors = useMemo(() => {
+    const errs: Record<string, string> = {};
+    if (!formData.fullName.trim()) {
+      errs.fullName = 'Full name is required.';
+    } else if (formData.fullName.trim().length < 2) {
+      errs.fullName = 'Full name must be at least 2 characters.';
+    }
+
+    if (!formData.email.trim()) {
+      errs.email = 'Corporate email is required.';
+    } else if (!isValidEmail(formData.email)) {
+      errs.email = 'Please enter a valid email address (e.g. name@corporation.com).';
+    }
+
+    if (formData.phone.trim() && !isValidPhone(formData.phone)) {
+      errs.phone = 'Please enter a valid phone number (at least 10 digits).';
+    }
+
+    if (!formData.subject.trim()) {
+      errs.subject = 'Inquiry subject is required.';
+    } else if (formData.subject.trim().length < 3) {
+      errs.subject = 'Subject must be at least 3 characters.';
+    }
+
+    if (!formData.message.trim()) {
+      errs.message = 'Message details are required.';
+    } else if (formData.message.trim().length < 10) {
+      errs.message = 'Please provide at least 10 characters describing your inquiry.';
+    }
+
+    if (!formData.captcha.trim()) {
+      errs.captcha = 'Security answer is required.';
+    } else if (parseInt(formData.captcha, 10) !== 12) {
+      errs.captcha = 'Incorrect answer: 8 + 4 equals 12.';
+    }
+
+    return errs;
+  }, [formData]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError('');
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!formData.fullName || !formData.email || !formData.subject || !formData.message || !formData.captcha) {
-      const msg = 'Please populate all required fields.';
-      setError(msg);
-      toastWarning(msg, 'Incomplete Fields');
-      return;
-    }
+    setTouched({
+      fullName: true,
+      email: true,
+      phone: true,
+      subject: true,
+      message: true,
+      captcha: true,
+    });
 
-    if (parseInt(formData.captcha) !== 12) {
-      const msg = 'Anti-spam validation failed: 8 + 4 does not equal ' + formData.captcha;
-      setError(msg);
-      toastError(msg, 'Validation Error');
+    const firstError = Object.values(fieldErrors)[0];
+    if (firstError) {
+      setError(firstError);
+      if (fieldErrors.captcha && Object.keys(fieldErrors).length === 1) {
+        toastError(firstError, 'Validation Error');
+      } else {
+        toastWarning('Please resolve the highlighted form errors before sending.', 'Form Validation');
+      }
       return;
     }
 
@@ -56,6 +110,7 @@ export default function ContactForm({ settings }: ContactFormProps) {
       if (response.ok) {
         setSuccess(true);
         toastSuccess('Your advisory inquiry has been transmitted securely.', 'Inquiry Sent');
+        setTouched({});
         setFormData({
           fullName: '',
           email: '',
@@ -80,7 +135,7 @@ export default function ContactForm({ settings }: ContactFormProps) {
   };
 
   const handleWhatsAppClick = () => {
-    window.open('https://wa.me/18005550190?text=Hello%20Richards%20Realty,%20I%20would%20like%20to%20request%20an%20advisory%20consultation.', '_blank');
+    window.open('https://wa.me/18005550190?text=Hello%20Howard%20Realty,%20I%20would%20like%20to%20request%20an%20advisory%20consultation.', '_blank');
   };
 
   return (
@@ -123,7 +178,7 @@ export default function ContactForm({ settings }: ContactFormProps) {
               <div className="space-y-1">
                 <p className="font-sans font-bold text-sm text-[#0A1D37] dark:text-white">Corporate HQ</p>
                 <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-                  {settings?.general?.address || "600 Montgomery St, 41st Floor, Transamerica Pyramid, San Francisco, CA 94111"}
+                  {settings?.general?.address || "1995 Woodlake Dr, Orange Park, FL 32003, USA"}
                 </p>
               </div>
             </div>
@@ -135,8 +190,8 @@ export default function ContactForm({ settings }: ContactFormProps) {
               </div>
               <div className="space-y-1">
                 <p className="font-sans font-bold text-sm text-[#0A1D37] dark:text-white">Direct Correspondence</p>
-                <a href={`mailto:${settings?.general?.email || "consulting@richardsrealty.com"}`} className="text-xs font-sans text-[#0A1D37] dark:text-slate-300 hover:text-[#C5A02E] transition-colors hover:underline">
-                  {settings?.general?.email || "consulting@richardsrealty.com"}
+                <a href={`mailto:${settings?.general?.email || "consultation.howardhomes@hotmail.com"}`} className="text-xs font-sans text-[#0A1D37] dark:text-slate-300 hover:text-[#C5A02E] transition-colors hover:underline">
+                  {settings?.general?.email || "consultation.howardhomes@hotmail.com"}
                 </a>
                 <p className="text-[10px] text-slate-500 dark:text-slate-500">Response standard: within 1 business hour</p>
               </div>
@@ -190,7 +245,7 @@ export default function ContactForm({ settings }: ContactFormProps) {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <h4 className="font-serif font-bold text-lg text-[#0A1D37] dark:text-white tracking-tight">Transmit Inquiry Memo</h4>
               
               {error && (
@@ -203,107 +258,184 @@ export default function ContactForm({ settings }: ContactFormProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Name */}
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
-                    Full Name <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
+                      Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    {touched.fullName && !fieldErrors.fullName && (
+                      <span className="text-emerald-500 text-[10px] font-semibold flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     name="fullName"
                     required
                     value={formData.fullName}
                     onChange={handleChange}
+                    onBlur={() => handleBlur('fullName')}
                     disabled={isLoading}
                     placeholder="Jane Doe"
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#C5A02E] transition-colors"
+                    className={`w-full bg-white dark:bg-slate-800 border rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-colors ${
+                      touched.fullName && fieldErrors.fullName
+                        ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                        : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                    }`}
                   />
+                  {touched.fullName && fieldErrors.fullName && (
+                    <p className="text-[11px] text-rose-500 font-sans">{fieldErrors.fullName}</p>
+                  )}
                 </div>
 
                 {/* Email */}
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
-                    Corporate Email <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
+                      Corporate Email <span className="text-rose-500">*</span>
+                    </label>
+                    {touched.email && !fieldErrors.email && (
+                      <span className="text-emerald-500 text-[10px] font-semibold flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                    )}
+                  </div>
                   <input
                     type="email"
                     name="email"
                     required
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={() => handleBlur('email')}
                     disabled={isLoading}
                     placeholder="name@corporation.com"
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#C5A02E] transition-colors"
+                    className={`w-full bg-white dark:bg-slate-800 border rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-colors ${
+                      touched.email && fieldErrors.email
+                        ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                        : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                    }`}
                   />
+                  {touched.email && fieldErrors.email && (
+                    <p className="text-[11px] text-rose-500 font-sans">{fieldErrors.email}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Phone */}
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
-                    Telephone Number
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
+                      Telephone Number
+                    </label>
+                    {touched.phone && formData.phone.trim() && !fieldErrors.phone && (
+                      <span className="text-emerald-500 text-[10px] font-semibold flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                    )}
+                  </div>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
+                    onBlur={() => handleBlur('phone')}
                     disabled={isLoading}
                     placeholder="+1 (555) 000-0000"
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#C5A02E] transition-colors tabular-nums"
+                    className={`w-full bg-white dark:bg-slate-800 border rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-colors tabular-nums ${
+                      touched.phone && fieldErrors.phone
+                        ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                        : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                    }`}
                   />
+                  {touched.phone && fieldErrors.phone && (
+                    <p className="text-[11px] text-rose-500 font-sans">{fieldErrors.phone}</p>
+                  )}
                 </div>
 
                 {/* Subject */}
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
-                    Inquiry Subject <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
+                      Inquiry Subject <span className="text-rose-500">*</span>
+                    </label>
+                    {touched.subject && !fieldErrors.subject && (
+                      <span className="text-emerald-500 text-[10px] font-semibold flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     name="subject"
                     required
                     value={formData.subject}
                     onChange={handleChange}
+                    onBlur={() => handleBlur('subject')}
                     disabled={isLoading}
                     placeholder="e.g. Zoning Documentation Inquiry"
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#C5A02E] transition-colors"
+                    className={`w-full bg-white dark:bg-slate-800 border rounded-none px-3 py-2 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-colors ${
+                      touched.subject && fieldErrors.subject
+                        ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                        : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                    }`}
                   />
+                  {touched.subject && fieldErrors.subject && (
+                    <p className="text-[11px] text-rose-500 font-sans">{fieldErrors.subject}</p>
+                  )}
                 </div>
               </div>
 
               {/* Message */}
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
-                  Message Details <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] uppercase font-sans tracking-wider text-gray-500 dark:text-slate-400">
+                    Message Details <span className="text-rose-500">*</span>
+                  </label>
+                  {touched.message && !fieldErrors.message && (
+                    <span className="text-emerald-500 text-[10px] font-semibold flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <textarea
                   name="message"
                   required
                   rows={4}
                   value={formData.message}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('message')}
                   disabled={isLoading}
                   placeholder="Provide parameters of your asset or consulting goals..."
-                  className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-none px-3 py-2.5 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#C5A02E] transition-colors resize-none"
+                  className={`w-full bg-white dark:bg-slate-800 border rounded-none px-3 py-2.5 text-xs text-[#0A1D37] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-colors resize-none ${
+                    touched.message && fieldErrors.message
+                      ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                 ></textarea>
+                {touched.message && fieldErrors.message && (
+                  <p className="text-[11px] text-rose-500 font-sans">{fieldErrors.message}</p>
+                )}
               </div>
 
               {/* Anti-spam validation */}
-              <div className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-none p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="space-y-0.5 text-center sm:text-left">
-                  <span className="text-[9px] text-[#C5A02E] uppercase font-sans tracking-wider font-semibold block">Spam Protection</span>
-                  <p className="text-[11px] text-gray-500 dark:text-slate-400">What is the sum of <span className="text-[#0A1D37] dark:text-white font-semibold">8 + 4</span>? <span className="text-rose-500">*</span></p>
+              <div className={`bg-white dark:bg-slate-800 border rounded-none p-4 space-y-2 ${
+                touched.captcha && fieldErrors.captcha ? 'border-rose-500' : 'border-gray-300 dark:border-slate-700'
+              }`}>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="space-y-0.5 text-center sm:text-left">
+                    <span className="text-[9px] text-[#C5A02E] uppercase font-sans tracking-wider font-semibold block">Spam Protection</span>
+                    <p className="text-[11px] text-gray-500 dark:text-slate-400">What is the sum of <span className="text-[#0A1D37] dark:text-white font-semibold">8 + 4</span>? <span className="text-rose-500">*</span></p>
+                  </div>
+                  <input
+                    type="number"
+                    name="captcha"
+                    required
+                    value={formData.captcha}
+                    onChange={handleChange}
+                    onBlur={() => handleBlur('captcha')}
+                    disabled={isLoading}
+                    placeholder="Your answer"
+                    className={`bg-[#F4F7F9] dark:bg-slate-900 border rounded-none px-3 py-1.5 text-xs text-[#0A1D37] dark:text-white text-center w-28 focus:outline-none transition-colors font-sans ${
+                      touched.captcha && fieldErrors.captcha
+                        ? 'border-rose-500'
+                        : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                    }`}
+                  />
                 </div>
-                <input
-                  type="number"
-                  name="captcha"
-                  required
-                  value={formData.captcha}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  placeholder="Your answer"
-                  className="bg-[#F4F7F9] dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-none px-3 py-1.5 text-xs text-[#0A1D37] dark:text-white text-center w-28 focus:outline-none focus:border-[#C5A02E] transition-colors font-sans"
-                />
+                {touched.captcha && fieldErrors.captcha && (
+                  <p className="text-[11px] text-rose-500 font-sans text-center sm:text-right">{fieldErrors.captcha}</p>
+                )}
               </div>
 
               {/* Submit */}

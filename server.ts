@@ -35,53 +35,58 @@ app.use(express.json({ limit: '10mb' }));
 // Initial Seed Data
 const DEFAULT_SETTINGS: WebsiteSettings = {
   general: {
-    companyName: "Richards Realty LLC",
+    companyName: "Howard Homes LLC",
     phone: "+1 (800) 555-0190",
-    email: "consulting@richardsrealty.com",
-    address: "600 Montgomery St, 41st Floor, San Francisco, CA 94111",
+    email: "consultation.howardhomes@hotmail.com",
+    address: "1995 Woodlake Dr, Orange Park, FL 32003, USA",
     workingHours: "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment",
     whatsappNumber: "18005550190",
     googleMapIframe: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.7853689405024!2d-122.40487002422204!3d37.79517597198124!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808580f49d8c3667%3A0x7d87f73cfeb88ec3!2sTransamerica%20Pyramid!5e0!3m2!1sen!2sus!4v1710000000000!5m2!1sen!2sus"
   },
   seo: {
-    metaTitle: "Richards Realty LLC | Elite Corporate Real Estate Advisory & Valuation",
-    metaDescription: "Richards Realty LLC is a premier corporate real estate consultancy. We provide investment advisory, property valuation, documentation, and facility management with absolute integrity.",
+    metaTitle: "Howard Homes LLC | Elite Corporate Real Estate Advisory & Valuation",
+    metaDescription: "Howard Homes LLC is a premier corporate real estate consultancy. We provide investment advisory, property valuation, documentation, and facility management with absolute integrity.",
     openGraphImage: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&h=630&q=80"
   },
   social: {
-    linkedin: "https://linkedin.com/company/richardsrealty",
-    twitter: "https://twitter.com/richardsrealty",
-    facebook: "https://facebook.com/richardsrealty",
-    instagram: "https://instagram.com/richardsrealty"
+    linkedin: "https://linkedin.com/company/howardhomes",
+    twitter: "https://twitter.com/howardhomes",
+    facebook: "https://facebook.com/howardhomes",
+    instagram: "https://instagram.com/howardhomes"
   },
   content: {
     heroHeadline: "Elite Corporate Real Estate & Valuation",
     heroSubheadline: "Strategic advisory, regulatory compliance, and high-end brokerage for the corporate enterprise.",
     heroImage: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1920&q=80",
     aboutHeadline: "The Standard of Commercial Excellence",
-    aboutText: "Richards Realty LLC serves the elite echelons of corporate real estate. Our firm provides uncompromising analytical precision, from RICS-certified valuations to facility management consultation. We prioritize data-driven strategies, securing optimal transaction values while navigating complex regulatory landscapes.",
+    aboutText: "Howard Homes LLC serves the elite echelons of corporate real estate. Our firm provides uncompromising analytical precision, from RICS-certified valuations to facility management consultation. We prioritize data-driven strategies, securing optimal transaction values while navigating complex regulatory landscapes.",
     aboutImage: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
     servicesHeadline: "Strategic Consulting Portfolios",
     servicesSubheadline: "Our expertise spans across critical corporate real estate functions, maximizing portfolio performance.",
     missionHeadline: "Our Mission & Vision",
-    missionText: "How Richards Realty LLC builds trust and sets premium standards across California's real estate domains.",
+    missionText: "How Howard Homes LLC builds trust and sets premium standards across California's real estate domains.",
     teamHeadline: "Meet Our Professional Team",
-    teamSubheadline: "Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Richards Realty LLC.",
+    teamSubheadline: "Bespoke transactional advisors, RICS chartered valuations surveyors, and municipal zoning advocates forming the core of Howard Homes LLC.",
     faqs: [
       { q: 'What services do you provide?', a: 'We provide specialized corporate real estate consultancy, certified RICS-compliant asset valuations, institutional investment underwriting, facility operational advice, local land registry document audits, development feasibility analysis, and zoning legal diagnostics.', category: 'Corporate' },
-      { q: 'How do I book a consultation?', a: 'You can book a direct briefing by clicking "Book Consultation" in our header or footer, completing our encrypted scheduler form, and providing your corporate objective details.', category: 'Corporate' },
-      { q: 'Do you sell or manage properties?', a: 'No. We maintain strict structural fiduciaries: we never operate commercial listing marketplaces, property transactions, or landlord renting services.', category: 'Corporate' },
-      { q: 'Do you provide certified valuation reports?', a: 'Yes. All our evaluations are completed by chartered valuations surveyors under the strict guidelines of the Royal Institution of Chartered Surveyors.', category: 'Valuations' },
-      { q: 'What zoning and regulatory standards do you adhere to?', a: 'Our advisory operates in strict compliance with California municipal real estate codes, zoning ordinances, and eminent domain guidelines.', category: 'Legal' },
+      { q: 'How do I book a confidential corporate consultation?', a: 'You can schedule a private briefing through our secure online scheduler or contact our senior partners directly via our corporate email. All initial discussions are bound by strict professional confidentiality agreements.', category: 'Corporate' },
+      { q: 'Do you operate as a broker or property listing marketplace?', a: 'No. Howard Homes LLC maintains strict fiduciary independence. We do not engage in retail brokerage, property management, or commercial listing platforms, ensuring our advice remains entirely objective.', category: 'Corporate' },
+      { q: 'Are your valuation reports RICS Red Book compliant?', a: 'Yes. All formal property valuations are executed by Royal Institution of Chartered Surveyors (RICS) qualified chartered surveyors adhering to international valuation standards (IVS).', category: 'Valuations' },
+      { q: 'What valuation methodologies do you employ for income-producing assets?', a: 'We utilize discounted cash flow (DCF) modeling, direct capitalization rate analysis, comparable sales metrics, and replacement cost approaches depending on asset class and market liquidity.', category: 'Valuations' },
+      { q: 'Can your valuation reports be submitted to financial institutions and auditing committees?', a: 'Yes. Our certified asset valuation dossiers are fully accepted by major commercial banks, syndicates, accounting auditors, and regulatory bodies for financing and reporting.', category: 'Valuations' },
+      { q: 'What regulatory and municipal standards govern your legal audits?', a: 'Our document and zoning audits operate in strict alignment with California real estate statutes, municipal zoning codes, environmental review mandates, and title verification protocols.', category: 'Legal' },
+      { q: 'How do you assist with eminent domain and zoning disputes?', a: 'We provide expert witness testimony, property devaluation impact assessments, easement analysis, and strategic land-use advocacy to protect client interests during municipal proceedings.', category: 'Legal' },
+      { q: 'What metrics are prioritized in investment underwriting?', a: 'We analyze internal rate of return (IRR), net operating income (NOI), debt service coverage ratio (DSCR), capital expenditure reserves, and macroeconomic sensitivity indices.', category: 'Investment' },
+      { q: 'How do ESG factors influence your real estate advisory?', a: 'We integrate energy efficiency ratings, carbon tax compliance, and sustainability benchmarks into our valuation and underwriting models to protect against brown-discounting and obsolescence risk.', category: 'Corporate' },
       { q: 'Are your valuation reports accepted by banking syndicates?', a: 'Yes. All our commercial valuation books are RICS Red Book compliant and fully accepted by major financial institutions for asset financing and audit verification.', category: 'Valuations' }
     ],
     aboutPageHeadline: "Corporate Profile",
-    aboutPageText: "Richards Realty LLC is a premier corporate advisory and valuation firm headquartered in San Francisco. We specialize in RICS-compliant valuations, commercial transaction consulting, and strategic facility management.",
+    aboutPageText: "Howard Homes LLC is a premier corporate advisory and valuation firm headquartered in San Francisco. We specialize in RICS-compliant valuations, commercial transaction consulting, and strategic facility management.",
     aboutPageStoryHeadline: "Our Legacy",
-    aboutPageStoryText: "Founded on the principles of integrity and analytical rigor, Richards Realty LLC has spent over two decades advising institutional investors, family offices, and multinational corporations on their most complex real estate challenges.",
+    aboutPageStoryText: "Founded on the principles of integrity and analytical rigor, Howard Homes LLC has spent over two decades advising institutional investors, family offices, and multinational corporations on their most complex real estate challenges.",
     aboutPageMessageHeadline: "A Word From the Managing Director",
     aboutPageMessageText: "Our commitment to excellence is unwavering. We navigate the complexities of the real estate market to deliver actionable insights and structural resilience for our clients.",
-    aboutPageMessageAuthor: "Arthur Richards, Managing Director",
+    aboutPageMessageAuthor: "Michael Howard, Managing Director",
     missionCoreHeadline: "Our Core Mission",
     missionCoreText: "To provide impartial, highly analytical, and strategic real estate advisory services that protect and enhance our clients' corporate assets and investment portfolios.",
     missionVisionHeadline: "Market Vision",
@@ -98,11 +103,50 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
     careersSubheadline: "Join a culture of analytical excellence and absolute integrity. We are always looking for driven professionals.",
     contactHeadline: "Contact Our Advisors",
     contactSubheadline: "Schedule a confidential briefing with our senior partners to discuss your corporate real estate objectives.",
-    footerText: "Richards Realty LLC operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.",
-    privacyPolicyText: "Your privacy is paramount. We adhere to stringent data protection standards to safeguard all corporate and personal information entrusted to us during engagements.",
-    termsOfServiceText: "By accessing this directory, you agree to our corporate terms of service. All content is for informational purposes and does not constitute formal financial or legal advice until an engagement letter is executed.",
-    cookiePolicyText: "We use essential cookies to ensure the functionality and security of our digital platforms. We do not use third-party tracking for advertising purposes.",
-    disclaimerText: "Valuations and advisory insights are subject to market volatility. Past performance and theoretical underwriting do not guarantee future yields."
+    footerText: "Howard Homes LLC operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.",
+    privacyPolicyText: `At Howard Homes LLC, we recognize that privacy and data security are paramount for our institutional, corporate, and private capital clients. This Privacy Policy outlines our uncompromising standards regarding the collection, protection, and processing of information across our digital platforms and advisory consultations.
+
+1. Information Collection & Purpose
+We collect information strictly necessary for the execution of professional real estate advisory, certified valuations, and consultation bookings. This includes corporate contact identifiers (names, corporate emails, telephone numbers), property verification parameters, and encrypted authentication records. We do not engage in unauthorized profiling, behavioral tracking, or commercial data aggregation.
+
+2. Security & Encryption Standards
+All data transmitted via our encrypted web portals, application forms, and consultation schedulers is protected using robust transport layer security (TLS) encryption and secure server sandboxing. Physical and digital records are stored in restricted-access environments compliant with California data privacy standards and federal security guidelines.
+
+3. Confidentiality & Non-Disclosure
+Client engagements are bound by strict professional privilege. Financial records, zoning inquiries, valuation drafts, and personal identification documents uploaded during application processes are accessible solely by authorized senior advisory personnel and are never sold, rented, or distributed to third-party marketing entities.
+
+4. Client Rights & Inquiries
+Clients retain full rights to request access to, correction of, or permanent deletion of their archived submission records. For privacy inquiries or data compliance requests, contact our Compliance Officer at consultation.howardhomes@hotmail.com.`,
+    termsOfServiceText: `Welcome to the Howard Homes LLC corporate website and advisory directory. By accessing, browsing, or utilizing our digital platforms, you agree to comply with and be bound by the following comprehensive Terms of Service.
+
+1. Corporate Informational Purpose
+The materials, research briefs, valuation methodologies, and advisory frameworks presented on this website serve purely as professional corporate informational guides. Accessing this site does not establish a formal advisory relationship, fiduciary obligation, or contractual retainer until a formal engagement letter or retainer agreement is executed in writing by authorized officers of Howard Homes LLC.
+
+2. Intellectual Property Rights
+All proprietary content, brand emblems, analytical frameworks, graphical layouts, and written briefs published on this platform are the exclusive intellectual property of Howard Homes LLC. Unauthorized reproduction, republication, or commercial dissemination is strictly prohibited under federal copyright laws.
+
+3. Fiduciary Independence & Scope
+Howard Homes LLC operates strictly as an independent corporate advisory and valuation consultancy. We maintain an uncompromising structural boundary: we do not operate retail brokerage lists, commercial property rental portfolios, or open marketplace listing platforms. All advice provided is impartial, objective, and free from brokerage conflicts of interest.
+
+4. Limitation of Liability
+Howard Homes LLC, its managing partners, and chartered surveyors shall not be held liable for any direct, indirect, incidental, or consequential damages arising from the use of, or reliance upon, informational briefs or preliminary underwriting models provided herein without direct professional verification.`,
+    cookiePolicyText: `Howard Homes LLC maintains a transparent and conservative approach to digital cookies and session tracking, ensuring absolute user confidentiality.
+
+1. Essential Session Cookies
+Our website utilizes strictly essential session tokens and authentication cookies necessary for core platform security, administrative login verification, and seamless navigation across secure portals. These cookies do not track individual browsing habits across external websites.
+
+2. Absence of Tracking Pixels & Advertising Cookies
+We do not deploy third-party advertising cookies, behavioral tracking pixels, social media remarketing tags, or commercial monetization scripts. Your visit to our corporate directory remains completely confidential and unmonitored by external data brokers.
+
+3. Managing Cookie Preferences
+Users may configure their web browser settings to block or delete cookies; however, disabling essential session cookies may restrict access to secure administrative modules and client portal verification tools.`,
+    disclaimerText: `The financial analyses, market insights, valuation estimates, and regulatory summaries published by Howard Homes LLC are subject to ongoing economic shifts, commercial real estate market volatility, and municipal regulatory updates.
+
+1. No Guarantee of Future Yields
+Past market performance, historical capitalization rates, and theoretical investment underwriting models do not guarantee future yields, asset valuations, or investment returns. Real estate investments carry inherent market risks requiring individualized due diligence.
+
+2. Professional Verification Required
+Advisory briefings, zoning audits, and preliminary valuation summaries do not substitute for formal, certified RICS Red Book appraisals or legal counsel. Clients are strictly advised to commission custom site-specific surveys and formal contractual engagements prior to committing capital.`
   },
   styling: {
     primaryColor: "#0A1D37",
@@ -208,12 +252,12 @@ const DEFAULT_TEAM: TeamMember[] = [
 ];
 
 const DEFAULT_GALLERY: GalleryItem[] = [
-  { id: "gal-1", title: "Richards Realty Headquarters - Boardroom", category: "Office", image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" },
+  { id: "gal-1", title: "Howard Homes Headquarters - Boardroom", category: "Office", image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" },
   { id: "gal-2", title: "Institutional Investor Round Table", category: "Meetings", image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80" },
   { id: "gal-3", title: "Premium Skyline Commercial Landmark under Advisory", category: "Projects", image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80" },
   { id: "gal-4", title: "Annual Corporate Real Estate Symposium", category: "Corporate Events", image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80" },
   { id: "gal-5", title: "Technical On-Site Asset Valuation Audit", category: "Site Visits", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80" },
-  { id: "gal-6", title: "Richards Executive Committee Workshop", category: "Team Activities", image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80" }
+  { id: "gal-6", title: "Howard Executive Committee Workshop", category: "Team Activities", image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80" }
 ];
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
@@ -221,14 +265,14 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     id: "test-1",
     name: "Executive Director",
     company: "Apex Global Holdings",
-    review: "Richards Realty LLC conducted a comprehensive valuation audit of our West Coast commercial real estate portfolio. Their RICS-certified reports were incredibly thorough, enabling us to secure a major restructuring with our banking syndicate. Absolutely premier service.",
+    review: "Howard Homes LLC conducted a comprehensive valuation audit of our West Coast commercial real estate portfolio. Their RICS-certified reports were incredibly thorough, enabling us to secure a major restructuring with our banking syndicate. Absolutely premier service.",
     rating: 5
   },
   {
     id: "test-2",
     name: "VP of Asset Management",
     company: "Metropolitan Insurance Group",
-    review: "The investment advisory team at Richards Realty provides deep quantitative insights that go far beyond standard market reports. They understand institutional risk, regulatory pressures, and yield management.",
+    review: "The investment advisory team at Howard Homes provides deep quantitative insights that go far beyond standard market reports. They understand institutional risk, regulatory pressures, and yield management.",
     rating: 5
   },
   {
@@ -294,6 +338,7 @@ const DEFAULT_CAREERS: JobListing[] = [
 // In-Memory Database State
 let DB = {
   settings: DEFAULT_SETTINGS,
+  adminPassword: "howardadmin",
   blogs: DEFAULT_BLOGS,
   team: DEFAULT_TEAM,
   gallery: DEFAULT_GALLERY,
@@ -327,7 +372,7 @@ function ensureUserProfile(email: string, fullName?: string, phone?: string, com
       company: company || "",
       leadStatus: 'New Lead',
       tags: ['Consultation Client'],
-      assignedAdmin: 'Arthur Richards (Managing Partner)',
+      assignedAdmin: 'Michael Howard (Managing Partner)',
       registrationDate: now,
       lastActive: now,
       notes: ""
@@ -454,11 +499,15 @@ async function syncFromFirestore() {
   console.log("Syncing database cache from Firestore...");
   try {
     // 1. Settings
-    const settingsDoc = await firestoreDb.collection('config').doc('settings').get();
-    if (settingsDoc.exists) {
-      DB.settings = settingsDoc.data();
-    } else {
-      await firestoreDb.collection('config').doc('settings').set(DB.settings);
+    try {
+      const settingsDoc = await firestoreDb.collection('config').doc('settings').get();
+      if (settingsDoc.exists) {
+        DB.settings = settingsDoc.data();
+      } else {
+        await firestoreDb.collection('config').doc('settings').set(DB.settings);
+      }
+    } catch (err) {
+      handleFirestoreError(err, "syncSettings");
     }
 
     // 2. Collections to sync
@@ -483,43 +532,47 @@ async function syncFromFirestore() {
 
     for (const item of keys) {
       if (!firestoreDb) return; // Exit if disabled by previous collection error
-      const snapshot = await firestoreDb.collection(item.coll).get();
-      if (!snapshot.empty) {
-        const list: any[] = [];
-        snapshot.forEach((doc: any) => {
-          list.push({ ...doc.data() });
-        });
-
-        // Sort items appropriately
-        if (item.key === 'blogs') {
-          list.sort((a, b) => {
-            const timeA = a.createdAt || a.date || a.id || "";
-            const timeB = b.createdAt || b.date || b.id || "";
-            return timeA > timeB ? -1 : 1;
+      try {
+        const snapshot = await firestoreDb.collection(item.coll).get();
+        if (!snapshot.empty) {
+          const list: any[] = [];
+          snapshot.forEach((doc: any) => {
+            list.push({ ...doc.data() });
           });
-        } else if (['consultations', 'messages', 'applications', 'subscribers', 'logs'].includes(item.key)) {
-          list.sort((a, b) => {
-            const timeA = a.createdAt || a.timestamp || a.id || "";
-            const timeB = b.createdAt || b.timestamp || b.id || "";
-            return timeA > timeB ? -1 : (timeA < timeB ? 1 : 0);
-          });
-        } else {
-          list.sort((a, b) => (a.id > b.id ? 1 : -1));
-        }
 
-        (DB as any)[item.key] = list;
-      } else {
-        const initialList = (DB as any)[item.key];
-        if (initialList && initialList.length > 0) {
-          console.log(`Seeding Firestore collection '${item.coll}' with ${initialList.length} items...`);
-          const batch = firestoreDb.batch();
-          for (const record of initialList) {
-            const docId = record.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-            const docRef = firestoreDb.collection(item.coll).doc(docId);
-            batch.set(docRef, record);
+          // Sort items appropriately
+          if (item.key === 'blogs') {
+            list.sort((a, b) => {
+              const timeA = a.createdAt || a.date || a.id || "";
+              const timeB = b.createdAt || b.date || b.id || "";
+              return timeA > timeB ? -1 : 1;
+            });
+          } else if (['consultations', 'messages', 'applications', 'subscribers', 'logs'].includes(item.key)) {
+            list.sort((a, b) => {
+              const timeA = a.createdAt || a.timestamp || a.id || "";
+              const timeB = b.createdAt || b.timestamp || b.id || "";
+              return timeA > timeB ? -1 : (timeA < timeB ? 1 : 0);
+            });
+          } else {
+            list.sort((a, b) => (a.id > b.id ? 1 : -1));
           }
-          await batch.commit();
+
+          (DB as any)[item.key] = list;
+        } else {
+          const initialList = (DB as any)[item.key];
+          if (initialList && initialList.length > 0) {
+            console.log(`Seeding Firestore collection '${item.coll}' with ${initialList.length} items...`);
+            const batch = firestoreDb.batch();
+            for (const record of initialList) {
+              const docId = record.id || `doc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+              const docRef = firestoreDb.collection(item.coll).doc(docId);
+              batch.set(docRef, record);
+            }
+            await batch.commit();
+          }
         }
+      } catch (err) {
+        handleFirestoreError(err, `syncCollection:${item.coll}`);
       }
     }
     console.log("Database cache synced successfully from Firestore.");
@@ -599,7 +652,7 @@ loadDatabase();
 // --- API ENDPOINTS ---
 
 // Session / Security Token Verification Middleware
-const ADMIN_TOKEN = "richards-secure-session-token-2026";
+const ADMIN_TOKEN = "howard-secure-session-token-2026";
 function checkAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ") && authHeader.substring(7) === ADMIN_TOKEN) {
@@ -612,7 +665,7 @@ function checkAdminAuth(req: express.Request, res: express.Response, next: expre
 // 1. Authentication
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
-  if (email === "admin@richardsrealty.com" && password === "richardsadmin") {
+  if (email === "admin@howardhomes.com" && password === DB.adminPassword) {
     writeLog("Admin Authorization", `Successful login for account: ${email}`);
     res.json({ token: ADMIN_TOKEN, user: { email, role: "Administrator" } });
   } else {
@@ -621,10 +674,28 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
+app.post('/api/auth/reset-password', (req, res) => {
+  const { email, recoveryKey, newPassword } = req.body;
+  const MASTER_RECOVERY_KEY = "HOWARD-SECURE-2026";
+
+  if (email === "admin@howardhomes.com" && recoveryKey === MASTER_RECOVERY_KEY) {
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "New password must be at least 6 characters long." });
+    }
+    DB.adminPassword = newPassword;
+    saveDatabase();
+    writeLog("Admin Password Reset", "Administrative credentials successfully updated via secure master recovery key.");
+    res.json({ success: true, message: "Password reset successfully. You may now log in with your new credentials." });
+  } else {
+    writeLog("Admin Password Reset Failure", `Failed password reset attempt for: ${email}`);
+    res.status(401).json({ error: "Invalid admin email or security recovery key." });
+  }
+});
+
 app.post('/api/auth/verify', (req, res) => {
   const { token } = req.body;
   if (token === ADMIN_TOKEN) {
-    res.json({ valid: true, user: { email: "admin@richardsrealty.com", role: "Administrator" } });
+    res.json({ valid: true, user: { email: "admin@howardhomes.com", role: "Administrator" } });
   } else {
     res.json({ valid: false });
   }
@@ -730,7 +801,7 @@ app.post('/api/consultations', (req, res) => {
     message: message || "",
     status: 'pending',
     consultationMethod: consultationMethod || 'virtual',
-    assignedTo: 'Arthur Richards (Managing Partner)',
+    assignedTo: 'Michael Howard (Managing Partner)',
     createdAt: new Date().toISOString()
   };
 
@@ -835,7 +906,7 @@ app.get('/api/applications/status', (req, res) => {
         statusStep,
         statusLabel,
         statusBadge,
-        assignedTo: c.assignedTo || 'Arthur Richards (Managing Partner)',
+        assignedTo: c.assignedTo || 'Michael Howard (Managing Partner)',
         internalNotes: c.internalNotes || 'Your application is progressing through our compliance pipeline. Paystubs and ID verification complete.',
         type: 'rental'
       };
@@ -987,7 +1058,7 @@ app.post('/api/communications/send', checkAdminAuth, (req, res) => {
     type: 'email',
     subject,
     message,
-    senderAdmin: 'Arthur Richards (Managing Partner)',
+    senderAdmin: 'Michael Howard (Managing Partner)',
     templateUsed: templateUsed || 'Custom Briefing Notice',
     sentAt: new Date().toISOString(),
     status: 'sent'
@@ -1026,7 +1097,7 @@ app.post('/api/followups', checkAdminAuth, (req, res) => {
     id: `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     userEmail: userEmail.toLowerCase(),
     userName: userName || userEmail,
-    assignedAdmin: assignedAdmin || 'Arthur Richards (Managing Partner)',
+    assignedAdmin: assignedAdmin || 'Michael Howard (Managing Partner)',
     scheduledDate,
     scheduledTime: scheduledTime || '10:00 AM',
     note,
@@ -1093,7 +1164,7 @@ app.get('/api/admin/export/:type', checkAdminAuth, (req, res) => {
   }
 
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename=richards_realty_${type}_${Date.now()}.csv`);
+  res.setHeader('Content-Disposition', `attachment; filename=howard_realty_${type}_${Date.now()}.csv`);
   res.status(200).send(csv);
 });
 
@@ -1181,7 +1252,7 @@ app.post('/api/blogs', checkAdminAuth, (req, res) => {
     shortDesc: shortDesc || content.substring(0, 150) + "...",
     content,
     image: image || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
-    author: author || "Richards Realty Advisory",
+    author: author || "Howard Homes Advisory",
     readTime: readTime || "5 min read"
   };
 
@@ -1540,7 +1611,7 @@ app.get('/api/logs', checkAdminAuth, (req, res) => {
 // 12. Backup & Restore (Admin only)
 app.get('/api/admin/backup', checkAdminAuth, (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', 'attachment; filename=richards_realty_backup.json');
+  res.setHeader('Content-Disposition', 'attachment; filename=howard_realty_backup.json');
   res.send(JSON.stringify(DB, null, 2));
 });
 

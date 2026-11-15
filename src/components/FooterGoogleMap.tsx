@@ -9,12 +9,12 @@ interface FooterGoogleMapProps {
   phone?: string;
 }
 
-// HQ Coordinates: Transamerica Pyramid, 600 Montgomery St, San Francisco, CA 94111
-const HQ_COORDINATES = { lat: 37.7952, lng: -122.4028 };
+// HQ Coordinates: 1995 Woodlake Dr, Orange Park, FL 32003, USA
+const HQ_COORDINATES = { lat: 30.1332, lng: -81.6854 };
 
 export default function FooterGoogleMap({
-  address = "600 Montgomery St, 41st Floor, San Francisco, CA 94111",
-  companyName = "Richards Realty LLC",
+  address = "1995 Woodlake Dr, Orange Park, FL 32003, USA",
+  companyName = "Howard Homes LLC",
   phone = "+1 (800) 555-0190"
 }: FooterGoogleMapProps) {
   const [isInfoWindowOpen, setIsInfoWindowOpen] = useState(false);

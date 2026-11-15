@@ -238,7 +238,7 @@ export interface WebsiteSettings {
     missionText?: string;
     teamHeadline?: string;
     teamSubheadline?: string;
-    faqs?: { q: string, a: string, category?: 'Valuations' | 'Legal' | 'Corporate' }[];
+    faqs?: { q: string, a: string, category?: 'Valuations' | 'Legal' | 'Corporate' | 'Investment' }[];
     // Other Pages
     aboutPageHeadline?: string;
     aboutPageText?: string;

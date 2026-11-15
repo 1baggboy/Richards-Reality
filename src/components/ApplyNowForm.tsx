@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Building, 
   User, 
@@ -28,6 +28,13 @@ import {
 } from 'lucide-react';
 import { WebsiteSettings } from '../types';
 import { PrintHeader, PrintFooter, handleImmediatePrint } from './PrintHeaderFooter';
+import {
+  isValidEmail,
+  isValidPhone,
+  isDateTodayOrFuture,
+  isAdultDateOfBirth,
+  isPositiveNumeric
+} from '../lib/validation';
 
 interface ApplyNowFormProps {
   onSuccessClose?: () => void;
@@ -37,6 +44,56 @@ interface ApplyNowFormProps {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+const PAYMENT_MODES = [
+  {
+    id: 'PayPal',
+    label: 'PayPal',
+    sub: 'Online & Card',
+    icon: (
+      <div className="w-8 h-8 rounded bg-[#003087]/10 dark:bg-white/10 flex items-center justify-center shrink-0">
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 2.476a.64.64 0 0 1 .632-.54h6.702c2.274 0 4.093.57 5.074 1.745.922 1.103 1.077 2.658.463 4.621-.61 1.954-1.782 3.498-3.483 4.588-1.554.996-3.473 1.501-5.704 1.501H6.77l-1.028 6.486a.64.64 0 0 0 .633.74h.701l.462-2.915a.64.64 0 0 1 .633-.54h2.247c3.483 0 6.22-1.415 7.02-4.998.347-1.554.124-2.85-.662-3.864-.84-1.082-2.3-1.636-4.341-1.636H5.708" fill="#003087" />
+          <path d="M9.138 14.85h-2.37l1.378-8.718h4.636c1.688 0 3.038.375 3.766 1.15.684.729.799 1.761.344 3.063-.453 1.295-1.323 2.32-2.585 3.042-1.153.66-2.578.994-4.234.994l-.935.469" fill="#0079C1" />
+        </svg>
+      </div>
+    )
+  },
+  {
+    id: 'Venmo',
+    label: 'Venmo',
+    sub: 'Mobile Wallet',
+    icon: (
+      <div className="w-8 h-8 rounded bg-[#008CFF] flex items-center justify-center text-white font-extrabold text-base italic shrink-0 shadow-xs">
+        <span>v</span>
+      </div>
+    )
+  },
+  {
+    id: 'Zelle',
+    label: 'Zelle',
+    sub: 'Bank Transfer',
+    icon: (
+      <div className="w-8 h-8 rounded bg-[#7414CA] flex items-center justify-center text-white shrink-0 shadow-xs">
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 6h12l-8 12h12" />
+          <line x1="12" y1="2" x2="12" y2="6" />
+          <line x1="12" y1="18" x2="12" y2="22" />
+        </svg>
+      </div>
+    )
+  },
+  {
+    id: 'Cash App',
+    label: 'Cash App',
+    sub: 'Instant Transfer',
+    icon: (
+      <div className="w-8 h-8 rounded bg-[#00D632] flex items-center justify-center text-white shrink-0 shadow-xs font-bold text-sm">
+        <DollarSign className="h-5 w-5 text-white stroke-[2.5]" />
+      </div>
+    )
+  }
+];
 
 export default function ApplyNowForm({ settings, onTrackClick }: ApplyNowFormProps) {
   // Active Section Step (1 to 6)
@@ -59,6 +116,8 @@ export default function ApplyNowForm({ settings, onTrackClick }: ApplyNowFormPro
     email: '',
     phone: '',
     dateOfBirth: '',
+    gender: 'Male',
+    paymentMethod: 'PayPal',
     ssnOrIdNumber: '',
     maritalStatus: 'Single',
     totalOccupants: '1',
@@ -121,18 +180,153 @@ export default function ApplyNowForm({ settings, onTrackClick }: ApplyNowFormPro
   const [idBackUrl, setIdBackUrl] = useState<string | null>(null);
 
   // Real-time Field Validators
-  const validateEmail = (val: string): boolean => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
-  };
+  const validateEmail = (val: string): boolean => isValidEmail(val);
+  const validatePhone = (val: string): boolean => isValidPhone(val);
 
-  const validatePhone = (val: string): boolean => {
-    const digitsOnly = val.replace(/\D/g, '');
-    return digitsOnly.length >= 10;
-  };
+  const fieldErrors = useMemo(() => {
+    const errs: Record<string, string> = {};
+
+    // Step 1: Personal Details
+    if (!formData.fullName.trim()) {
+      errs.fullName = 'Full Legal Name is required.';
+    } else if (formData.fullName.trim().length < 2) {
+      errs.fullName = 'Full Legal Name must be at least 2 characters.';
+    }
+
+    if (!formData.email.trim()) {
+      errs.email = 'Email address is required.';
+    } else if (!isValidEmail(formData.email)) {
+      errs.email = 'Please enter a valid email address (e.g. name@example.com).';
+    }
+
+    if (!formData.phone.trim()) {
+      errs.phone = 'Mobile phone number is required.';
+    } else if (!isValidPhone(formData.phone)) {
+      errs.phone = 'Please enter a valid phone number (10 to 15 digits).';
+    }
+
+    if (!formData.dateOfBirth.trim()) {
+      errs.dateOfBirth = 'Date of Birth is required.';
+    } else if (!isAdultDateOfBirth(formData.dateOfBirth)) {
+      errs.dateOfBirth = 'Applicant must be at least 18 years old with a valid birth date.';
+    }
+
+    if (!formData.gender) {
+      errs.gender = 'Gender selection is required.';
+    }
+
+    if (!formData.ssnOrIdNumber.trim()) {
+      errs.ssnOrIdNumber = 'Social Security Number is required.';
+    } else if (formData.ssnOrIdNumber.trim().length < 4) {
+      errs.ssnOrIdNumber = 'Please enter a valid Social Security Number (at least 4 characters).';
+    }
+
+    if (!formData.maritalStatus) {
+      errs.maritalStatus = 'Marital / Civil Status is required.';
+    }
+
+    if (!formData.totalOccupants) {
+      errs.totalOccupants = 'Total Number of Occupants is required.';
+    }
+
+    if (!formData.paymentMethod) {
+      errs.paymentMethod = 'Please select your preferred mode of payment.';
+    }
+
+    // Step 2: Property & Residential History
+    if (!formData.propertyRequested.trim()) {
+      errs.propertyRequested = 'Rental property address / unit requested is required.';
+    } else if (formData.propertyRequested.trim().length < 3) {
+      errs.propertyRequested = 'Please enter a complete property address or unit name.';
+    }
+
+    if (formData.desiredMoveInDate && !isDateTodayOrFuture(formData.desiredMoveInDate)) {
+      errs.desiredMoveInDate = 'Desired move-in date cannot be in the past.';
+    }
+
+    if (!formData.currentAddress.trim()) {
+      errs.currentAddress = 'Current residential street address is required.';
+    } else if (formData.currentAddress.trim().length < 5) {
+      errs.currentAddress = 'Please enter your complete current street address.';
+    }
+
+    if (formData.currentRentAmount.trim() && !isPositiveNumeric(formData.currentRentAmount)) {
+      errs.currentRentAmount = 'Monthly rent amount must be a positive number.';
+    }
+
+    if (formData.currentLandlordPhone.trim() && !isValidPhone(formData.currentLandlordPhone)) {
+      errs.currentLandlordPhone = 'Please enter a valid landlord phone number (10+ digits).';
+    }
+
+    // Step 3: Employment & Income
+    if (!formData.employerName.trim()) {
+      errs.employerName = 'Employer or primary source of income is required.';
+    } else if (formData.employerName.trim().length < 2) {
+      errs.employerName = 'Employer name must be at least 2 characters.';
+    }
+
+    if (!formData.grossMonthlyIncome.trim()) {
+      errs.grossMonthlyIncome = 'Gross Monthly Income is required.';
+    } else if (!isPositiveNumeric(formData.grossMonthlyIncome)) {
+      errs.grossMonthlyIncome = 'Gross Monthly Income must be greater than $0.';
+    }
+
+    if (formData.supervisorPhone.trim() && !isValidPhone(formData.supervisorPhone)) {
+      errs.supervisorPhone = 'Please enter a valid supervisor phone number (10+ digits).';
+    }
+
+    // Step 4: Co-Applicants & Pets (conditional required checks)
+    if (formData.hasCoApplicants === 'Yes' && !formData.coApplicantsDetails.trim()) {
+      errs.coApplicantsDetails = 'Please provide Co-Applicant names and details.';
+    }
+
+    if (formData.hasPets === 'Yes' && !formData.petDetails.trim()) {
+      errs.petDetails = 'Please describe your pets or assistance animals (type, breed, weight).';
+    }
+
+    // Step 5: Document Upload & Emergency Contact
+    if (!idFrontDocName) {
+      errs.id_front = 'Government Photo ID (Front Side) upload is required.';
+    }
+    if (!idBackDocName) {
+      errs.id_back = 'Government Photo ID (Back Side) upload is required.';
+    }
+
+    if (!formData.emergencyContactName.trim()) {
+      errs.emergencyContactName = 'Emergency contact full name is required.';
+    } else if (formData.emergencyContactName.trim().length < 2) {
+      errs.emergencyContactName = 'Emergency contact name must be at least 2 characters.';
+    }
+
+    if (!formData.emergencyContactPhone.trim()) {
+      errs.emergencyContactPhone = 'Emergency contact phone number is required.';
+    } else if (!isValidPhone(formData.emergencyContactPhone)) {
+      errs.emergencyContactPhone = 'Please enter a valid emergency phone number (10+ digits).';
+    }
+
+    if (!formData.screeningConsent) {
+      errs.screeningConsent = 'You must agree to the Tenant Screening Authorization Consent.';
+    }
+
+    // Step 6: Submission Review & Signature
+    if (!formData.digitalSignature.trim()) {
+      errs.digitalSignature = 'Electronic Digital Signature is required.';
+    } else if (formData.digitalSignature.trim().length < 2) {
+      errs.digitalSignature = 'Please type your full legal name as your digital signature.';
+    }
+
+    if (!formData.captcha.trim()) {
+      errs.captcha = 'Security verification answer is required.';
+    } else if (parseInt(formData.captcha, 10) !== 9) {
+      errs.captcha = 'Incorrect answer: 5 + 4 equals 9.';
+    }
+
+    return errs;
+  }, [formData, idFrontDocName, idBackDocName]);
 
   // Draft auto-save handler (debounced)
   useEffect(() => {
-    if (!formData.email || !validateEmail(formData.email)) return;
+    if (!formData.email || !isValidEmail(formData.email)) return;
     
     const timer = setTimeout(async () => {
       try {
@@ -165,6 +359,7 @@ export default function ApplyNowForm({ settings, onTrackClick }: ApplyNowFormPro
     const { name, value, type } = e.target;
     
     setTouchedFields(prev => ({ ...prev, [name]: true }));
+    if (submitError) setSubmitError(null);
 
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
@@ -223,57 +418,126 @@ export default function ApplyNowForm({ settings, onTrackClick }: ApplyNowFormPro
   const validateStep = (step: number): boolean => {
     setSubmitError(null);
 
-    // Mark all fields for step as touched
     if (step === 1) {
-      setTouchedFields(prev => ({ ...prev, fullName: true, email: true, phone: true }));
-      if (!formData.fullName.trim()) { setSubmitError("Please enter your Full Legal Name."); return false; }
-      if (!formData.email.trim() || !validateEmail(formData.email)) { setSubmitError("Please enter a valid email address."); return false; }
-      if (!formData.phone.trim() || !validatePhone(formData.phone)) { setSubmitError("Please enter a valid 10-digit phone number."); return false; }
+      const step1Fields = [
+        'fullName',
+        'email',
+        'phone',
+        'dateOfBirth',
+        'gender',
+        'paymentMethod',
+        'ssnOrIdNumber',
+        'maritalStatus',
+        'totalOccupants'
+      ];
+      setTouchedFields(prev => ({
+        ...prev,
+        ...Object.fromEntries(step1Fields.map(k => [k, true]))
+      }));
+      for (const field of step1Fields) {
+        if (fieldErrors[field]) {
+          setSubmitError(fieldErrors[field]);
+          return false;
+        }
+      }
     }
+
     if (step === 2) {
-      setTouchedFields(prev => ({ ...prev, propertyRequested: true, currentAddress: true }));
-      if (!formData.propertyRequested.trim()) { setSubmitError("Please specify the Rental Property / Unit Address requested."); return false; }
-      if (!formData.currentAddress.trim()) { setSubmitError("Please provide your Current Residential Address."); return false; }
+      const step2Fields = [
+        'propertyRequested',
+        'desiredMoveInDate',
+        'currentAddress',
+        'currentRentAmount',
+        'currentLandlordPhone'
+      ];
+      setTouchedFields(prev => ({
+        ...prev,
+        ...Object.fromEntries(step2Fields.map(k => [k, true]))
+      }));
+      for (const field of step2Fields) {
+        if (fieldErrors[field]) {
+          setSubmitError(fieldErrors[field]);
+          return false;
+        }
+      }
     }
+
     if (step === 3) {
-      setTouchedFields(prev => ({ ...prev, employerName: true, grossMonthlyIncome: true }));
-      if (!formData.employerName.trim()) { setSubmitError("Please state your Employer or Primary Source of Income."); return false; }
-      if (!formData.grossMonthlyIncome.trim()) { setSubmitError("Please state your Gross Monthly Income amount."); return false; }
+      const step3Fields = ['employerName', 'grossMonthlyIncome', 'supervisorPhone'];
+      setTouchedFields(prev => ({
+        ...prev,
+        ...Object.fromEntries(step3Fields.map(k => [k, true]))
+      }));
+      for (const field of step3Fields) {
+        if (fieldErrors[field]) {
+          setSubmitError(fieldErrors[field]);
+          return false;
+        }
+      }
     }
+
+    if (step === 4) {
+      const step4Fields = ['coApplicantsDetails', 'petDetails'];
+      setTouchedFields(prev => ({
+        ...prev,
+        ...Object.fromEntries(step4Fields.map(k => [k, true]))
+      }));
+      for (const field of step4Fields) {
+        if (fieldErrors[field]) {
+          setSubmitError(fieldErrors[field]);
+          return false;
+        }
+      }
+    }
+
     if (step === 5) {
-      setTouchedFields(prev => ({ ...prev, emergencyContactName: true, emergencyContactPhone: true }));
-      if (!idFrontDocName) {
+      const step5Fields = ['id_front', 'id_back', 'emergencyContactName', 'emergencyContactPhone', 'screeningConsent'];
+      setTouchedFields(prev => ({
+        ...prev,
+        ...Object.fromEntries(step5Fields.map(k => [k, true]))
+      }));
+      if (fieldErrors.id_front) {
         setSubmitError("Government Photo ID (Front Side) must be uploaded before proceeding to Step 6.");
         return false;
       }
-      if (!idBackDocName) {
+      if (fieldErrors.id_back) {
         setSubmitError("Government Photo ID (Back Side) must be uploaded before proceeding to Step 6.");
         return false;
       }
-      if (!formData.emergencyContactName.trim() || !formData.emergencyContactPhone.trim()) {
-        setSubmitError("Please fill in your Emergency Contact details.");
+      if (fieldErrors.emergencyContactName) {
+        setSubmitError(fieldErrors.emergencyContactName);
         return false;
       }
-      if (!formData.screeningConsent) {
+      if (fieldErrors.emergencyContactPhone) {
+        setSubmitError(fieldErrors.emergencyContactPhone);
+        return false;
+      }
+      if (fieldErrors.screeningConsent) {
         setSubmitError("You must check the Background & Credit Screening Consent box to proceed.");
         return false;
       }
     }
+
     if (step === 6) {
-      setTouchedFields(prev => ({ ...prev, digitalSignature: true, captcha: true }));
+      const step6Fields = ['digitalSignature', 'captcha'];
+      setTouchedFields(prev => ({
+        ...prev,
+        ...Object.fromEntries(step6Fields.map(k => [k, true]))
+      }));
       if (!idFrontDocName || !idBackDocName) {
         setSubmitError("Government Photo ID (Front AND Back sides) are strictly required before submitting your application. Please attach both sides in Step 5.");
         return false;
       }
-      if (!formData.digitalSignature.trim()) {
-        setSubmitError("Please provide your Electronic Digital Signature.");
+      if (fieldErrors.digitalSignature) {
+        setSubmitError(fieldErrors.digitalSignature);
         return false;
       }
-      if (!formData.captcha || parseInt(formData.captcha) !== 9) {
+      if (fieldErrors.captcha) {
         setSubmitError("Security math verification failed. (5 + 4 = 9).");
         return false;
       }
     }
+
     return true;
   };
 
@@ -307,6 +571,8 @@ export default function ApplyNowForm({ settings, onTrackClick }: ApplyNowFormPro
       email: formData.email,
       phone: formData.phone,
       dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender,
+      paymentMethod: formData.paymentMethod,
       ssnOrIdNumber: formData.ssnOrIdNumber,
       maritalStatus: formData.maritalStatus,
       totalOccupants: formData.totalOccupants,
@@ -351,7 +617,7 @@ PROPERTY REQUESTED: ${formData.propertyRequested} (Move-in: ${formData.desiredMo
 APPLICANT PERSONAL DETAILS:
 Full Name: ${formData.fullName}
 Email: ${formData.email} | Phone: ${formData.phone}
-DOB: ${formData.dateOfBirth || 'N/A'} | Marital Status: ${formData.maritalStatus} | Total Occupants: ${formData.totalOccupants}
+DOB: ${formData.dateOfBirth || 'N/A'} | Gender: ${formData.gender || 'N/A'} | Payment Mode: ${formData.paymentMethod || 'PayPal'} | Marital Status: ${formData.maritalStatus} | Total Occupants: ${formData.totalOccupants}
 ID / SSN: ${formData.ssnOrIdNumber ? 'Provided (Encrypted & Verified)' : 'N/A'}
 
 RESIDENTIAL HISTORY:
@@ -466,7 +732,7 @@ DOCUMENT_ATTACHMENTS_METADATA:
               Application Successfully Submitted
             </h2>
             <p className="text-gray-600 dark:text-slate-300 text-sm max-w-xl">
-              Thank you, <strong className="text-[#0A1D37] dark:text-white">{submittedData.applicantName}</strong>. Your rental application has been logged into the Richards Realty management directory and admin panel.
+              Thank you, <strong className="text-[#0A1D37] dark:text-white">{submittedData.applicantName}</strong>. Your rental application has been logged into the Howard Homes management directory and admin panel.
             </p>
           </div>
 
@@ -509,7 +775,7 @@ DOCUMENT_ATTACHMENTS_METADATA:
             <ul className="text-xs text-gray-600 dark:text-slate-300 space-y-2 list-disc pl-5 leading-relaxed">
               <li>Our leasing team will verify income documents and landlord references within 24–48 business hours.</li>
               <li>You will receive an official notification email regarding application approval status or requests for supplementary documents.</li>
-              <li>All application information is available to administrators in the Richards Realty Management Panel for PDF documentation.</li>
+              <li>All application information is available to administrators in the Howard Homes Management Panel for PDF documentation.</li>
             </ul>
           </div>
 
@@ -552,11 +818,18 @@ DOCUMENT_ATTACHMENTS_METADATA:
             <button
               onClick={() => {
                 setSubmittedData(null);
+                setSubmitError(null);
                 setActiveStep(1);
                 setTouchedFields({});
                 setFileErrors({});
+                setIncomeDocName(null);
+                setIdFrontDocName(null);
+                setIdBackDocName(null);
+                setIncomeUrl(null);
+                setIdFrontUrl(null);
+                setIdBackUrl(null);
                 setFormData({
-                  fullName: '', email: '', phone: '', dateOfBirth: '', ssnOrIdNumber: '', maritalStatus: 'Single',
+                  fullName: '', email: '', phone: '', dateOfBirth: '', gender: 'Male', paymentMethod: 'PayPal', ssnOrIdNumber: '', maritalStatus: 'Single',
                   totalOccupants: '1', propertyRequested: '', desiredMoveInDate: '', leaseTerm: '12 Months',
                   monthlyRentBudget: '', currentAddress: '', currentResidenceDuration: '', currentRentAmount: '',
                   currentLandlordName: '', currentLandlordPhone: '', reasonForLeaving: '', employmentStatus: 'Full-time Employee',
@@ -584,36 +857,18 @@ DOCUMENT_ATTACHMENTS_METADATA:
       
       {/* Top Header Banner */}
       <div className="bg-[#0A1D37] text-white p-6 sm:p-8 border-b-4 border-[#C5A02E] shadow-2xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="font-serif font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
-              Residential Rental Application
-            </h2>
-            <p className="text-gray-300 text-xs sm:text-sm max-w-2xl leading-relaxed mt-1">
-              Complete all sections of the official housing application below. Information submitted is encrypted and directly linked to our administrative property management system.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-end gap-1 shrink-0 text-right">
-            <div className="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 border border-slate-700 text-[11px] font-mono text-slate-300">
-              <RefreshCw className={`h-3 w-3 ${isDraftSaving ? 'animate-spin text-[#C5A02E]' : 'text-emerald-400'}`} />
-              <span>{isDraftSaving ? 'Saving Draft...' : draftSavedTime ? `Saved ${draftSavedTime}` : 'Auto-Save Active'}</span>
-            </div>
-          </div>
+        <div>
+          <h2 className="font-serif font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
+            Residential Rental Application
+          </h2>
+          <p className="text-gray-300 text-xs sm:text-sm max-w-2xl leading-relaxed mt-1">
+            Complete all sections of the official housing application below. Information submitted is encrypted and directly linked to our administrative property management system.
+          </p>
         </div>
       </div>
 
       {/* --- MULTI-STEP PROGRESS BAR WIDGET --- */}
       <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-4 shadow-md space-y-3">
-        {/* Progress Text & Percentage */}
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 font-bold text-[#0A1D37] dark:text-white">
-            <span className="px-2 py-0.5 bg-[#C5A02E] text-white font-mono text-[11px]">Step {activeStep} of 6</span>
-            <span>{stepsList[activeStep - 1].label}</span>
-          </div>
-          <span className="font-mono font-bold text-[#C5A02E] text-xs">{progressPercentage}% Completed</span>
-        </div>
-
         {/* Visual Progress Bar track */}
         <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 overflow-hidden">
           <div 
@@ -671,7 +926,7 @@ DOCUMENT_ATTACHMENTS_METADATA:
       )}
 
       {/* Main Form Container */}
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-xl p-6 sm:p-8 space-y-8 text-slate-900 dark:text-white">
+      <form onSubmit={handleSubmit} noValidate className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-xl p-6 sm:p-8 space-y-8 text-slate-900 dark:text-white">
         
         {/* STEP 1: PERSONAL DETAILS */}
         {activeStep === 1 && (
@@ -689,7 +944,7 @@ DOCUMENT_ATTACHMENTS_METADATA:
               <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                 <div className="flex justify-between items-center text-xs font-semibold">
                   <label className="text-gray-700 dark:text-slate-300">Full Legal Name <span className="text-rose-500">*</span></label>
-                  {touchedFields.fullName && formData.fullName.trim() && (
+                  {touchedFields.fullName && !fieldErrors.fullName && (
                     <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
                   )}
                 </div>
@@ -701,14 +956,14 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   onBlur={() => handleBlur('fullName')}
                   placeholder="First, Middle, Last Name"
                   className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                    touchedFields.fullName && !formData.fullName.trim()
+                    touchedFields.fullName && fieldErrors.fullName
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                   }`}
                   required
                 />
-                {touchedFields.fullName && !formData.fullName.trim() && (
-                  <p className="text-[10px] text-rose-500">Full Legal Name is required.</p>
+                {touchedFields.fullName && fieldErrors.fullName && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.fullName}</p>
                 )}
               </div>
 
@@ -716,7 +971,7 @@ DOCUMENT_ATTACHMENTS_METADATA:
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-semibold">
                   <label className="text-gray-700 dark:text-slate-300">Email Address <span className="text-rose-500">*</span></label>
-                  {touchedFields.email && validateEmail(formData.email) && (
+                  {touchedFields.email && !fieldErrors.email && (
                     <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid Format</span>
                   )}
                 </div>
@@ -728,14 +983,14 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   onBlur={() => handleBlur('email')}
                   placeholder="applicant@example.com"
                   className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                    touchedFields.email && (!formData.email.trim() || !validateEmail(formData.email))
+                    touchedFields.email && fieldErrors.email
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                   }`}
                   required
                 />
-                {touchedFields.email && (!formData.email.trim() || !validateEmail(formData.email)) && (
-                  <p className="text-[10px] text-rose-500">Please enter a valid email address format.</p>
+                {touchedFields.email && fieldErrors.email && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.email}</p>
                 )}
               </div>
 
@@ -743,8 +998,8 @@ DOCUMENT_ATTACHMENTS_METADATA:
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-semibold">
                   <label className="text-gray-700 dark:text-slate-300">Mobile Phone Number <span className="text-rose-500">*</span></label>
-                  {touchedFields.phone && validatePhone(formData.phone) && (
-                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> 10+ Digits Valid</span>
+                  {touchedFields.phone && !fieldErrors.phone && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
                   )}
                 </div>
                 <input
@@ -755,66 +1010,147 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   onBlur={() => handleBlur('phone')}
                   placeholder="+1 (555) 000-0000"
                   className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                    touchedFields.phone && (!formData.phone.trim() || !validatePhone(formData.phone))
+                    touchedFields.phone && fieldErrors.phone
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                   }`}
                   required
                 />
-                {touchedFields.phone && (!formData.phone.trim() || !validatePhone(formData.phone)) && (
-                  <p className="text-[10px] text-rose-500">Please enter a valid phone number (at least 10 digits).</p>
+                {touchedFields.phone && fieldErrors.phone && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.phone}</p>
                 )}
               </div>
 
               {/* Date of Birth */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Date of Birth</label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Date of Birth <span className="text-rose-500">*</span></label>
+                  {touchedFields.dateOfBirth && !fieldErrors.dateOfBirth && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="date"
                   name="dateOfBirth"
                   value={formData.dateOfBirth}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  onBlur={() => handleBlur('dateOfBirth')}
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.dateOfBirth && fieldErrors.dateOfBirth
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
+                  required
                 />
+                {touchedFields.dateOfBirth && fieldErrors.dateOfBirth && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.dateOfBirth}</p>
+                )}
+              </div>
+
+              {/* Gender */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Gender <span className="text-rose-500">*</span></label>
+                  {touchedFields.gender && formData.gender && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Selected</span>
+                  )}
+                </div>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  onBlur={() => handleBlur('gender')}
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.gender && !formData.gender
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
+                  required
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+                {touchedFields.gender && !formData.gender && (
+                  <p className="text-[10px] text-rose-500">Gender is required.</p>
+                )}
               </div>
 
               {/* SSN / ID */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Driver's License / SSN / Passport #</label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Social Security Number <span className="text-rose-500">*</span></label>
+                  {touchedFields.ssnOrIdNumber && !fieldErrors.ssnOrIdNumber && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Provided</span>
+                  )}
+                </div>
                 <input
                   type="password"
                   name="ssnOrIdNumber"
                   value={formData.ssnOrIdNumber}
                   onChange={handleChange}
-                  placeholder="Encrypted SSN or Gov ID #"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  onBlur={() => handleBlur('ssnOrIdNumber')}
+                  placeholder="Encrypted Social Security Number"
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.ssnOrIdNumber && fieldErrors.ssnOrIdNumber
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
+                  required
                 />
+                {touchedFields.ssnOrIdNumber && fieldErrors.ssnOrIdNumber && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.ssnOrIdNumber}</p>
+                )}
               </div>
 
               {/* Marital Status */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Marital / Civil Status</label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Marital / Civil Status <span className="text-rose-500">*</span></label>
+                  {touchedFields.maritalStatus && formData.maritalStatus && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Selected</span>
+                  )}
+                </div>
                 <select
                   name="maritalStatus"
                   value={formData.maritalStatus}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  onBlur={() => handleBlur('maritalStatus')}
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.maritalStatus && !formData.maritalStatus
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
+                  required
                 >
                   <option value="Single">Single</option>
                   <option value="Married">Married</option>
                   <option value="Divorced">Divorced</option>
                   <option value="Domestic Partnership">Domestic Partnership</option>
                 </select>
+                {touchedFields.maritalStatus && !formData.maritalStatus && (
+                  <p className="text-[10px] text-rose-500">Marital / Civil Status is required.</p>
+                )}
               </div>
 
               {/* Total Occupants */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Total Number of Occupants</label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Total Number of Occupants <span className="text-rose-500">*</span></label>
+                  {touchedFields.totalOccupants && formData.totalOccupants && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Specified</span>
+                  )}
+                </div>
                 <select
                   name="totalOccupants"
                   value={formData.totalOccupants}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  onBlur={() => handleBlur('totalOccupants')}
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.totalOccupants && !formData.totalOccupants
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
+                  required
                 >
                   <option value="1">1 Person</option>
                   <option value="2">2 People</option>
@@ -822,6 +1158,60 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   <option value="4">4 People</option>
                   <option value="5+">5+ People</option>
                 </select>
+                {touchedFields.totalOccupants && !formData.totalOccupants && (
+                  <p className="text-[10px] text-rose-500">Total Number of Occupants is required.</p>
+                )}
+              </div>
+
+              {/* Method / Mode of Payment */}
+              <div className="space-y-2 col-span-1 sm:col-span-2 lg:col-span-3 pt-2">
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">
+                    Mode of Payment <span className="text-rose-500">*</span>
+                  </label>
+                  {touchedFields.paymentMethod && formData.paymentMethod && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5">
+                      <Check className="h-3 w-3" /> Selected: {formData.paymentMethod}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {PAYMENT_MODES.map((mode) => {
+                    const isSelected = formData.paymentMethod === mode.id;
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, paymentMethod: mode.id }));
+                          setTouchedFields(prev => ({ ...prev, paymentMethod: true }));
+                        }}
+                        className={`flex items-center gap-3 p-3 border text-left cursor-pointer transition-all duration-150 ${
+                          isSelected
+                            ? 'border-[#C5A02E] bg-[#C5A02E]/10 dark:bg-[#C5A02E]/20 text-[#0A1D37] dark:text-white shadow-sm ring-1 ring-[#C5A02E]'
+                            : 'border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-[#C5A02E]/50'
+                        }`}
+                      >
+                        {/* Brand Logo on the Side */}
+                        {mode.icon}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold leading-tight truncate">{mode.label}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-slate-400 leading-tight truncate">{mode.sub}</p>
+                        </div>
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                          isSelected
+                            ? 'border-[#C5A02E] bg-[#C5A02E]'
+                            : 'border-gray-400 dark:border-slate-600'
+                        }`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {touchedFields.paymentMethod && !formData.paymentMethod && (
+                  <p className="text-[10px] text-rose-500">Please select your preferred mode of payment.</p>
+                )}
               </div>
 
             </div>
@@ -843,21 +1233,29 @@ DOCUMENT_ATTACHMENTS_METADATA:
               <h4 className="font-sans font-bold text-xs uppercase tracking-wider text-[#0A1D37] dark:text-[#C5A02E]">Target Property Requested</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Property Address / Unit Requested <span className="text-rose-500">*</span></label>
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <label className="text-gray-700 dark:text-slate-300">Property Address / Unit Requested <span className="text-rose-500">*</span></label>
+                    {touchedFields.propertyRequested && !fieldErrors.propertyRequested && (
+                      <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     name="propertyRequested"
                     value={formData.propertyRequested}
                     onChange={handleChange}
                     onBlur={() => handleBlur('propertyRequested')}
-                    placeholder="e.g. 600 Montgomery St, Apt 402, San Francisco"
+                    placeholder="e.g. 1995 Woodlake Dr, Orange Park, FL 32003"
                     className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                      touchedFields.propertyRequested && !formData.propertyRequested.trim()
+                      touchedFields.propertyRequested && fieldErrors.propertyRequested
                         ? 'border-rose-500 bg-rose-50/20'
                         : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                     }`}
                     required
                   />
+                  {touchedFields.propertyRequested && fieldErrors.propertyRequested && (
+                    <p className="text-[10px] text-rose-500">{fieldErrors.propertyRequested}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Desired Move-In Date</label>
@@ -866,8 +1264,16 @@ DOCUMENT_ATTACHMENTS_METADATA:
                     name="desiredMoveInDate"
                     value={formData.desiredMoveInDate}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                    onBlur={() => handleBlur('desiredMoveInDate')}
+                    className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                      touchedFields.desiredMoveInDate && fieldErrors.desiredMoveInDate
+                        ? 'border-rose-500 bg-rose-50/20'
+                        : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                    }`}
                   />
+                  {touchedFields.desiredMoveInDate && fieldErrors.desiredMoveInDate && (
+                    <p className="text-[10px] text-rose-500">{fieldErrors.desiredMoveInDate}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Lease Term Requested</label>
@@ -890,7 +1296,12 @@ DOCUMENT_ATTACHMENTS_METADATA:
             {/* Current Residence Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Current Street Address <span className="text-rose-500">*</span></label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Current Street Address <span className="text-rose-500">*</span></label>
+                  {touchedFields.currentAddress && !fieldErrors.currentAddress && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="text"
                   name="currentAddress"
@@ -899,12 +1310,15 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   onBlur={() => handleBlur('currentAddress')}
                   placeholder="Street Address, City, State, Zip Code"
                   className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                    touchedFields.currentAddress && !formData.currentAddress.trim()
+                    touchedFields.currentAddress && fieldErrors.currentAddress
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                   }`}
                   required
                 />
+                {touchedFields.currentAddress && fieldErrors.currentAddress && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.currentAddress}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -923,12 +1337,21 @@ DOCUMENT_ATTACHMENTS_METADATA:
                 <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Current Monthly Rent / Mortgage ($)</label>
                 <input
                   type="number"
+                  min="1"
                   name="currentRentAmount"
                   value={formData.currentRentAmount}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('currentRentAmount')}
                   placeholder="e.g. 2400"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.currentRentAmount && fieldErrors.currentRentAmount
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                 />
+                {touchedFields.currentRentAmount && fieldErrors.currentRentAmount && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.currentRentAmount}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -944,15 +1367,28 @@ DOCUMENT_ATTACHMENTS_METADATA:
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Landlord Phone Number</label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Landlord Phone Number</label>
+                  {touchedFields.currentLandlordPhone && formData.currentLandlordPhone.trim() && !fieldErrors.currentLandlordPhone && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="tel"
                   name="currentLandlordPhone"
                   value={formData.currentLandlordPhone}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('currentLandlordPhone')}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.currentLandlordPhone && fieldErrors.currentLandlordPhone
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                 />
+                {touchedFields.currentLandlordPhone && fieldErrors.currentLandlordPhone && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.currentLandlordPhone}</p>
+                )}
               </div>
 
               <div className="sm:col-span-2 space-y-1.5">
@@ -999,7 +1435,12 @@ DOCUMENT_ATTACHMENTS_METADATA:
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Employer / Business Name <span className="text-rose-500">*</span></label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Employer / Business Name <span className="text-rose-500">*</span></label>
+                  {touchedFields.employerName && !fieldErrors.employerName && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="text"
                   name="employerName"
@@ -1008,12 +1449,15 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   onBlur={() => handleBlur('employerName')}
                   placeholder="Company Name"
                   className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                    touchedFields.employerName && !formData.employerName.trim()
+                    touchedFields.employerName && fieldErrors.employerName
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                   }`}
                   required
                 />
+                {touchedFields.employerName && fieldErrors.employerName && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.employerName}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -1029,33 +1473,55 @@ DOCUMENT_ATTACHMENTS_METADATA:
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Gross Monthly Income ($) <span className="text-rose-500">*</span></label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Gross Monthly Income ($) <span className="text-rose-500">*</span></label>
+                  {touchedFields.grossMonthlyIncome && !fieldErrors.grossMonthlyIncome && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="number"
+                  min="1"
                   name="grossMonthlyIncome"
                   value={formData.grossMonthlyIncome}
                   onChange={handleChange}
                   onBlur={() => handleBlur('grossMonthlyIncome')}
                   placeholder="e.g. 8500"
                   className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
-                    touchedFields.grossMonthlyIncome && !formData.grossMonthlyIncome.trim()
+                    touchedFields.grossMonthlyIncome && fieldErrors.grossMonthlyIncome
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                   }`}
                   required
                 />
+                {touchedFields.grossMonthlyIncome && fieldErrors.grossMonthlyIncome && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.grossMonthlyIncome}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Supervisor / HR Phone</label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Supervisor / HR Phone</label>
+                  {touchedFields.supervisorPhone && formData.supervisorPhone.trim() && !fieldErrors.supervisorPhone && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="tel"
                   name="supervisorPhone"
                   value={formData.supervisorPhone}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('supervisorPhone')}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.supervisorPhone && fieldErrors.supervisorPhone
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                 />
+                {touchedFields.supervisorPhone && fieldErrors.supervisorPhone && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.supervisorPhone}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -1101,15 +1567,28 @@ DOCUMENT_ATTACHMENTS_METADATA:
 
                 {formData.hasCoApplicants === 'Yes' && (
                   <div className="space-y-1.5 pt-2">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Co-Applicant Names & Details</label>
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <label className="text-gray-700 dark:text-slate-300">Co-Applicant Names & Details <span className="text-rose-500">*</span></label>
+                      {touchedFields.coApplicantsDetails && !fieldErrors.coApplicantsDetails && (
+                        <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                      )}
+                    </div>
                     <textarea
                       name="coApplicantsDetails"
                       value={formData.coApplicantsDetails}
                       onChange={handleChange}
+                      onBlur={() => handleBlur('coApplicantsDetails')}
                       rows={2}
                       placeholder="e.g. Jane Doe (Spouse) - Phone: 555-0199"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                      className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                        touchedFields.coApplicantsDetails && fieldErrors.coApplicantsDetails
+                          ? 'border-rose-500 bg-rose-50/20'
+                          : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                      }`}
                     />
+                    {touchedFields.coApplicantsDetails && fieldErrors.coApplicantsDetails && (
+                      <p className="text-[10px] text-rose-500">{fieldErrors.coApplicantsDetails}</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1143,15 +1622,28 @@ DOCUMENT_ATTACHMENTS_METADATA:
 
                 {formData.hasPets === 'Yes' && (
                   <div className="space-y-1.5 pt-2">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Pet Details (Type, Breed, Weight)</label>
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <label className="text-gray-700 dark:text-slate-300">Pet Details (Type, Breed, Weight) <span className="text-rose-500">*</span></label>
+                      {touchedFields.petDetails && !fieldErrors.petDetails && (
+                        <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       name="petDetails"
                       value={formData.petDetails}
                       onChange={handleChange}
+                      onBlur={() => handleBlur('petDetails')}
                       placeholder="e.g. Golden Retriever, 45 lbs"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                      className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                        touchedFields.petDetails && fieldErrors.petDetails
+                          ? 'border-rose-500 bg-rose-50/20'
+                          : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                      }`}
                     />
+                    {touchedFields.petDetails && fieldErrors.petDetails && (
+                      <p className="text-[10px] text-rose-500">{fieldErrors.petDetails}</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1189,15 +1681,15 @@ DOCUMENT_ATTACHMENTS_METADATA:
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   {/* Driver's License Front Side */}
                   <div className={`border-2 border-dashed p-4 text-center space-y-2 bg-white dark:bg-slate-900 transition-all ${
-                    fileErrors.id_front ? 'border-rose-500 bg-rose-500/10' : idFrontDocName ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-300 dark:border-slate-700'
+                    fileErrors.id_front || (touchedFields.id_front && fieldErrors.id_front) ? 'border-rose-500 bg-rose-500/10' : idFrontDocName ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-300 dark:border-slate-700'
                   }`}>
-                    <UploadCloud className={`h-7 w-7 mx-auto ${fileErrors.id_front ? 'text-rose-500' : idFrontDocName ? 'text-emerald-500' : 'text-[#C5A02E]'}`} />
-                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Driver's License (Front Side)</div>
+                    <UploadCloud className={`h-7 w-7 mx-auto ${fileErrors.id_front || (touchedFields.id_front && fieldErrors.id_front) ? 'text-rose-500' : idFrontDocName ? 'text-emerald-500' : 'text-[#C5A02E]'}`} />
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Driver's License (Front Side) <span className="text-rose-500">*</span></div>
                     <p className="text-[10px] text-gray-500 dark:text-slate-400">PDF, PNG, JPG up to 10MB</p>
                     
-                    {fileErrors.id_front && (
+                    {(fileErrors.id_front || (touchedFields.id_front && fieldErrors.id_front)) && (
                       <div className="p-1.5 bg-rose-500/20 text-rose-600 dark:text-rose-300 text-[10px] font-semibold flex items-center justify-center gap-1">
-                        <FileWarning className="h-3.5 w-3.5" /> {fileErrors.id_front}
+                        <FileWarning className="h-3.5 w-3.5 shrink-0" /> {fileErrors.id_front || fieldErrors.id_front}
                       </div>
                     )}
 
@@ -1209,15 +1701,15 @@ DOCUMENT_ATTACHMENTS_METADATA:
 
                   {/* Driver's License Back Side */}
                   <div className={`border-2 border-dashed p-4 text-center space-y-2 bg-white dark:bg-slate-900 transition-all ${
-                    fileErrors.id_back ? 'border-rose-500 bg-rose-500/10' : idBackDocName ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-300 dark:border-slate-700'
+                    fileErrors.id_back || (touchedFields.id_back && fieldErrors.id_back) ? 'border-rose-500 bg-rose-500/10' : idBackDocName ? 'border-emerald-500 bg-emerald-500/10' : 'border-gray-300 dark:border-slate-700'
                   }`}>
-                    <UploadCloud className={`h-7 w-7 mx-auto ${fileErrors.id_back ? 'text-rose-500' : idBackDocName ? 'text-emerald-500' : 'text-[#C5A02E]'}`} />
-                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Driver's License (Back Side)</div>
+                    <UploadCloud className={`h-7 w-7 mx-auto ${fileErrors.id_back || (touchedFields.id_back && fieldErrors.id_back) ? 'text-rose-500' : idBackDocName ? 'text-emerald-500' : 'text-[#C5A02E]'}`} />
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Driver's License (Back Side) <span className="text-rose-500">*</span></div>
                     <p className="text-[10px] text-gray-500 dark:text-slate-400">PDF, PNG, JPG up to 10MB</p>
                     
-                    {fileErrors.id_back && (
+                    {(fileErrors.id_back || (touchedFields.id_back && fieldErrors.id_back)) && (
                       <div className="p-1.5 bg-rose-500/20 text-rose-600 dark:text-rose-300 text-[10px] font-semibold flex items-center justify-center gap-1">
-                        <FileWarning className="h-3.5 w-3.5" /> {fileErrors.id_back}
+                        <FileWarning className="h-3.5 w-3.5 shrink-0" /> {fileErrors.id_back || fieldErrors.id_back}
                       </div>
                     )}
 
@@ -1256,16 +1748,29 @@ DOCUMENT_ATTACHMENTS_METADATA:
             {/* Emergency Contact */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 border border-gray-200 dark:border-slate-700">
               <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Emergency Contact Name <span className="text-rose-500">*</span></label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Emergency Contact Name <span className="text-rose-500">*</span></label>
+                  {touchedFields.emergencyContactName && !fieldErrors.emergencyContactName && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="text"
                   name="emergencyContactName"
                   value={formData.emergencyContactName}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('emergencyContactName')}
                   placeholder="First and Last Name"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.emergencyContactName && fieldErrors.emergencyContactName
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                   required
                 />
+                {touchedFields.emergencyContactName && fieldErrors.emergencyContactName && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.emergencyContactName}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -1281,16 +1786,29 @@ DOCUMENT_ATTACHMENTS_METADATA:
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Emergency Phone <span className="text-rose-500">*</span></label>
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <label className="text-gray-700 dark:text-slate-300">Emergency Phone <span className="text-rose-500">*</span></label>
+                  {touchedFields.emergencyContactPhone && !fieldErrors.emergencyContactPhone && (
+                    <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Valid</span>
+                  )}
+                </div>
                 <input
                   type="tel"
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('emergencyContactPhone')}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:border-[#C5A02E] focus:outline-none"
+                  className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white focus:outline-none ${
+                    touchedFields.emergencyContactPhone && fieldErrors.emergencyContactPhone
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                   required
                 />
+                {touchedFields.emergencyContactPhone && fieldErrors.emergencyContactPhone && (
+                  <p className="text-[10px] text-rose-500">{fieldErrors.emergencyContactPhone}</p>
+                )}
               </div>
             </div>
 
@@ -1314,7 +1832,11 @@ DOCUMENT_ATTACHMENTS_METADATA:
             </div>
 
             {/* Consent Checkbox */}
-            <div className="p-4 bg-[#0A1D37]/5 dark:bg-slate-800/80 border border-[#C5A02E]/30 space-y-2">
+            <div className={`p-4 border space-y-2 ${
+              touchedFields.screeningConsent && fieldErrors.screeningConsent
+                ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-500'
+                : 'bg-[#0A1D37]/5 dark:bg-slate-800/80 border-[#C5A02E]/30'
+            }`}>
               <label className="flex items-start gap-3 cursor-pointer text-xs text-gray-700 dark:text-slate-200 leading-relaxed">
                 <input
                   type="checkbox"
@@ -1324,9 +1846,12 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   className="mt-0.5 h-4 w-4 text-[#C5A02E] border-gray-300 rounded-none focus:ring-0"
                 />
                 <span>
-                  <strong>Tenant Screening Authorization Consent:</strong> I hereby certify that the statements made in this rental application are true and correct. I authorize Richards Realty LLC to perform background, employment, rental history, and consumer credit verification.
+                  <strong>Tenant Screening Authorization Consent:</strong> I hereby certify that the statements made in this rental application are true and correct. I authorize Howard Homes LLC to perform background, employment, rental history, and consumer credit verification.
                 </span>
               </label>
+              {touchedFields.screeningConsent && fieldErrors.screeningConsent && (
+                <p className="text-[10px] text-rose-500 font-semibold pl-7">{fieldErrors.screeningConsent}</p>
+              )}
             </div>
           </div>
         )}
@@ -1362,23 +1887,22 @@ DOCUMENT_ATTACHMENTS_METADATA:
 
             {/* --- INTERACTIVE APPLICATION REVIEW DOSSIER CARD --- */}
             <div className="bg-slate-50 dark:bg-slate-800/70 p-5 border border-gray-200 dark:border-slate-700 space-y-4 text-xs">
-              <div className="flex items-center justify-between border-b pb-3">
+              <div className="border-b pb-3">
                 <span className="font-serif font-bold text-base text-[#0A1D37] dark:text-white">Pre-Submission Application Summary</span>
-                <span className={`text-[10px] font-mono font-bold uppercase ${
-                  !idFrontDocName || !idBackDocName ? 'text-rose-500' : 'text-[#C5A02E]'
-                }`}>
-                  {!idFrontDocName || !idBackDocName ? 'ID Attachment Incomplete' : 'Ready for Final Transmittal'}
-                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <span className="text-gray-500 dark:text-slate-400 text-[10px] uppercase font-bold block">Applicant Name</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{formData.fullName || 'Not Provided'}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{formData.fullName || 'Not Provided'} <span className="font-normal text-xs text-[#C5A02E]">({formData.gender})</span></p>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-slate-400 text-[10px] uppercase font-bold block">Email & Phone</span>
                   <p className="font-mono text-slate-900 dark:text-white">{formData.email} | {formData.phone}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-slate-400 text-[10px] uppercase font-bold block">Mode of Payment</span>
+                  <p className="font-bold text-[#C5A02E]">{formData.paymentMethod || 'PayPal'}</p>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-slate-400 text-[10px] uppercase font-bold block">Property Requested</span>
@@ -1421,7 +1945,12 @@ DOCUMENT_ATTACHMENTS_METADATA:
               <h4 className="font-sans font-bold text-xs uppercase tracking-wider text-[#0A1D37] dark:text-[#C5A02E]">Legal Electronic Signature</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">Type Your Full Legal Name <span className="text-rose-500">*</span></label>
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <label className="text-gray-700 dark:text-slate-300">Type Your Full Legal Name <span className="text-rose-500">*</span></label>
+                    {touchedFields.digitalSignature && !fieldErrors.digitalSignature && (
+                      <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Signed</span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     name="digitalSignature"
@@ -1430,12 +1959,15 @@ DOCUMENT_ATTACHMENTS_METADATA:
                     onBlur={() => handleBlur('digitalSignature')}
                     placeholder="e.g. Johnathan Edward Doe"
                     className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border font-serif text-sm italic text-[#0A1D37] dark:text-[#C5A02E] focus:outline-none ${
-                      touchedFields.digitalSignature && !formData.digitalSignature.trim()
+                      touchedFields.digitalSignature && fieldErrors.digitalSignature
                         ? 'border-rose-500 bg-rose-50/20'
                         : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
                     }`}
                     required
                   />
+                  {touchedFields.digitalSignature && fieldErrors.digitalSignature && (
+                    <p className="text-[10px] text-rose-500">{fieldErrors.digitalSignature}</p>
+                  )}
                   <p className="text-[10px] text-gray-400">By typing your full name above, you acknowledge this electronic signature is legally binding.</p>
                 </div>
 
@@ -1453,9 +1985,14 @@ DOCUMENT_ATTACHMENTS_METADATA:
 
             {/* Captcha Security Check */}
             <div className="p-4 bg-slate-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 space-y-2">
-              <label className="text-xs font-bold text-[#0A1D37] dark:text-white block">
-                Security Math Verification Challenge <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex justify-between items-center max-w-xs">
+                <label className="text-xs font-bold text-[#0A1D37] dark:text-white block">
+                  Security Math Verification Challenge <span className="text-rose-500">*</span>
+                </label>
+                {touchedFields.captcha && !fieldErrors.captcha && (
+                  <span className="text-emerald-500 text-[10px] flex items-center gap-0.5"><Check className="h-3 w-3" /> Verified</span>
+                )}
+              </div>
               <div className="flex items-center gap-3 max-w-xs">
                 <span className="font-mono font-bold text-sm bg-white dark:bg-slate-900 px-3 py-1.5 border border-gray-300 dark:border-slate-700">
                   5 + 4 =
@@ -1465,11 +2002,19 @@ DOCUMENT_ATTACHMENTS_METADATA:
                   name="captcha"
                   value={formData.captcha}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('captcha')}
                   placeholder="?"
-                  className="w-20 px-3 py-1.5 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-sm font-mono focus:border-[#C5A02E] focus:outline-none"
+                  className={`w-20 px-3 py-1.5 bg-white dark:bg-slate-900 border text-sm font-mono focus:outline-none ${
+                    touchedFields.captcha && fieldErrors.captcha
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-[#C5A02E]'
+                  }`}
                   required
                 />
               </div>
+              {touchedFields.captcha && fieldErrors.captcha && (
+                <p className="text-[10px] text-rose-500">{fieldErrors.captcha}</p>
+              )}
             </div>
           </div>
         )}

@@ -35,7 +35,7 @@ export default function SupportInbox() {
     // Header
     doc.setFontSize(22);
     doc.setTextColor(10, 29, 55); // #0A1D37
-    doc.text("RICHARDS REALTY LLC", 14, 20);
+    doc.text("HOWARD HOMES LLC", 14, 20);
     
     doc.setFontSize(14);
     doc.setTextColor(197, 160, 46); // #C5A02E
@@ -50,7 +50,7 @@ export default function SupportInbox() {
     
     const tableData = messages.map(msg => [
       msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleString() : 'Pending',
-      msg.sender === 'admin' ? 'Richards Advisory' : activeThread.visitorName,
+      msg.sender === 'admin' ? 'Howard Advisory' : activeThread.visitorName,
       msg.text
     ]);
 
@@ -72,37 +72,39 @@ export default function SupportInbox() {
   };
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        setAuthError(true);
-        return;
-      }
-
-      const path = 'supportThreads';
-      const q = query(collection(db, path), orderBy('lastMessageAt', 'desc'));
-      const unsubscribeSnap = onSnapshot(q, (snapshot) => {
-        const threadList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as SupportThread));
-        setThreads(threadList);
-        setAuthError(false);
-      }, (error) => {
-        if (error.code === 'permission-denied') {
+    const adminToken = localStorage.getItem('howard_admin_token');
+    
+    if (!adminToken) {
+      const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+        if (!user) {
           setAuthError(true);
-        } else {
-          try {
-            handleFirestoreError(error, OperationType.LIST, path);
-          } catch (e) {
-            // Logged to console via handleFirestoreError
-          }
         }
       });
+      return () => unsubscribeAuth();
+    }
 
-      return () => unsubscribeSnap();
+    const path = 'supportThreads';
+    const q = query(collection(db, path), orderBy('lastMessageAt', 'desc'));
+    const unsubscribeSnap = onSnapshot(q, (snapshot) => {
+      const threadList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as SupportThread));
+      setThreads(threadList);
+      setAuthError(false);
+    }, (error) => {
+      if (error.code === 'permission-denied') {
+        setAuthError(true);
+      } else {
+        try {
+          handleFirestoreError(error, OperationType.LIST, path);
+        } catch (e) {
+          // Logged to console via handleFirestoreError
+        }
+      }
     });
 
-    return () => unsubscribeAuth();
+    return () => unsubscribeSnap();
   }, []);
 
   useEffect(() => {
@@ -374,7 +376,7 @@ export default function SupportInbox() {
                 >
                   <div className="flex items-center gap-2 mb-1.5 px-1">
                     <span className="text-[9px] font-bold text-[#0A1D37] dark:text-slate-300 uppercase tracking-widest">
-                      {msg.sender === 'admin' ? 'Richards Advisory Team' : activeThread.visitorName}
+                      {msg.sender === 'admin' ? 'Howard Advisory Team' : activeThread.visitorName}
                     </span>
                     <span className="text-[9px] text-gray-400 font-sans">•</span>
                     <span className="text-[9px] text-gray-400 font-sans">

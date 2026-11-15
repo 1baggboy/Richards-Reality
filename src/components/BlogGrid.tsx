@@ -217,7 +217,7 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[#0A1D37] dark:text-white">{readingBlog.author}</p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-sans">Richards Realty Research & Intelligence</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-sans">Howard Homes Research & Intelligence</p>
                   </div>
                 </div>
                 <button

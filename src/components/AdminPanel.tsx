@@ -29,7 +29,7 @@ interface AdminPanelProps {
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
-  const [token, setToken] = useState<string | null>(localStorage.getItem('richards_admin_token'));
+  const [token, setToken] = useState<string | null>(localStorage.getItem('howard_admin_token'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -79,7 +79,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
   // Content Editing Forms
   const [isBlogFormOpen, setIsBlogFormOpen] = useState(false);
-  const [blogFormData, setBlogFormData] = useState({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richards Realty Advisory', readTime: '5 min read' });
+  const [blogFormData, setBlogFormData] = useState({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Howard Homes Advisory', readTime: '5 min read' });
   const [isTeamFormOpen, setIsTeamFormOpen] = useState(false);
   const [teamFormData, setTeamFormData] = useState({ id: '', name: '', position: '', bio: '', image: '', linkedin: '', email: '' });
   const [isGalleryFormOpen, setIsGalleryFormOpen] = useState(false);
@@ -87,6 +87,14 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [isCareerFormOpen, setIsCareerFormOpen] = useState(false);
   const [careerFormData, setCareerFormData] = useState({ id: '', title: '', department: 'Investment Advisory', location: 'San Francisco, CA', type: 'Full-time' as any, description: '', requirements: '' });
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Password Reset Modal State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [recoveryKey, setRecoveryKey] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetError, setResetError] = useState('');
 
   // Load backend data
   const loadAdminData = async (adminToken: string) => {
@@ -170,7 +178,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       });
       const data = await response.json();
       if (response.ok && data.token) {
-        localStorage.setItem('richards_admin_token', data.token);
+        localStorage.setItem('howard_admin_token', data.token);
         setToken(data.token);
         toastSuccess("Authenticated into Executive Control Hub.", "Access Granted");
       } else {
@@ -182,10 +190,81 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('richards_admin_token');
+    localStorage.removeItem('howard_admin_token');
     setToken(null);
-    signOut(auth);
+    signOut(auth).catch(() => {});
     onClose();
+  };
+
+  // Idle Timeout (15 minutes = 900,000 ms)
+  useEffect(() => {
+    if (!token) return;
+
+    const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let lastActivity = Date.now();
+
+    const triggerIdleLogout = () => {
+      toastWarning('Session expired due to 15 minutes of inactivity.', 'Security Logout');
+      handleLogout();
+    };
+
+    const resetTimer = () => {
+      lastActivity = Date.now();
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(triggerIdleLogout, IDLE_TIMEOUT_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+        triggerIdleLogout();
+      }
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'] as const;
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer, { passive: true });
+    });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [token]);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    if (newPassword !== confirmNewPassword) {
+      setResetError('New passwords do not match.');
+      return;
+    }
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail, recoveryKey, newPassword })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toastSuccess('Password successfully reset. You may now log in.', 'Security Reset');
+        setIsResetModalOpen(false);
+        setResetEmail('');
+        setRecoveryKey('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      } else {
+        setResetError(data.error || 'Password reset failed.');
+      }
+    } catch (err) {
+      setResetError('Connection failed. Server not reachable.');
+    }
   };
 
   // Status Updates
@@ -210,18 +289,20 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteConsultation = async (id: string) => {
-    if (!window.confirm("Delete consultation booking record permanently?")) return;
     try {
       const res = await fetch(`/api/consultations/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        toastSuccess('Consultation record removed.', 'Record Deleted');
+        toastSuccess('Consultation record removed successfully.', 'Record Deleted');
         loadAdminData(token!);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toastError(data.error || 'Failed to delete consultation record.', 'Delete Error');
       }
     } catch (err) {
-      console.error(err);
+      toastError('Network error while deleting consultation record.', 'Delete Error');
     }
   };
 
@@ -357,7 +438,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       });
       if (res.ok) {
         setIsBlogFormOpen(false);
-        setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richards Realty Advisory', readTime: '5 min read' });
+        setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Howard Homes Advisory', readTime: '5 min read' });
         toastSuccess('Blog insight published.', 'Saved');
         loadAdminData(token!);
       }
@@ -367,15 +448,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteBlog = async (id: string) => {
-    if (!window.confirm("Delete article?")) return;
     try {
       const res = await fetch(`/api/blogs/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess('Article removed successfully.', 'Deleted');
+        loadAdminData(token!);
+      } else {
+        toastError('Failed to delete article.', 'Error');
+      }
     } catch (err) {
-      console.error(err);
+      toastError('Network error while deleting article.', 'Error');
     }
   };
 
@@ -405,15 +490,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteTeam = async (id: string) => {
-    if (!window.confirm("Remove this team member?")) return;
     try {
       const res = await fetch(`/api/team/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess('Team member removed successfully.', 'Deleted');
+        loadAdminData(token!);
+      } else {
+        toastError('Failed to delete team member.', 'Error');
+      }
     } catch (err) {
-      console.error(err);
+      toastError('Network error while deleting team member.', 'Error');
     }
   };
 
@@ -441,15 +530,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteGallery = async (id: string) => {
-    if (!window.confirm("Remove this gallery asset?")) return;
     try {
       const res = await fetch(`/api/gallery/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess('Gallery asset removed successfully.', 'Deleted');
+        loadAdminData(token!);
+      } else {
+        toastError('Failed to delete gallery asset.', 'Error');
+      }
     } catch (err) {
-      console.error(err);
+      toastError('Network error while deleting gallery asset.', 'Error');
     }
   };
 
@@ -479,15 +572,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   };
 
   const handleDeleteCareer = async (id: string) => {
-    if (!window.confirm("Withdraw this vacancy?")) return;
     try {
       const res = await fetch(`/api/careers/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) loadAdminData(token!);
+      if (res.ok) {
+        toastSuccess('Career listing removed successfully.', 'Deleted');
+        loadAdminData(token!);
+      } else {
+        toastError('Failed to delete career listing.', 'Error');
+      }
     } catch (err) {
-      console.error(err);
+      toastError('Network error while deleting career listing.', 'Error');
     }
   };
 
@@ -565,80 +662,197 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   // If not logged in, show Login UI
   if (!token) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#0A1D37]/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-none shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-[#0A1D37] text-[#C5A02E]">
-                <ShieldAlert className="h-6 w-6" />
+      <>
+        <div className="fixed inset-0 z-50 bg-[#0A1D37]/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-none shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-[#0A1D37] text-[#C5A02E]">
+                  <ShieldAlert className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-extrabold text-lg text-[#0A1D37] dark:text-white">Executive Control Hub</h3>
+                  <p className="text-[11px] font-sans text-gray-500 dark:text-slate-400">Howard Homes LLC Administration</p>
+                </div>
               </div>
+              <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-none cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {authError && (
+              <div className="bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs p-3 rounded-none mb-5 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4 font-sans">
               <div>
-                <h3 className="font-serif font-extrabold text-lg text-[#0A1D37] dark:text-white">Executive Control Hub</h3>
-                <p className="text-[11px] font-sans text-gray-500 dark:text-slate-400">Richards Realty LLC Administration</p>
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-gray-600 dark:text-slate-300 block mb-1">
+                  Administrator Account
+                </label>
+                <div className="relative">
+                  <User className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@howardhomes.com"
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E]"
+                  />
+                </div>
               </div>
-            </div>
-            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-none cursor-pointer">
-              <X className="h-5 w-5" />
-            </button>
+
+              <div>
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-gray-600 dark:text-slate-300 block mb-1">
+                  Security Passcode
+                </label>
+                <div className="relative">
+                  <Lock className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E]"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase tracking-wider py-3.5 rounded-none transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border border-[#C5A02E]/30"
+              >
+                <ShieldCheck className="h-4 w-4 text-[#C5A02E]" /> Login
+              </button>
+
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-[11px] text-gray-500">Need credential recovery?</span>
+                <button
+                  type="button"
+                  onClick={() => setIsResetModalOpen(true)}
+                  className="text-[11px] font-bold text-[#C5A02E] hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <HelpCircle className="h-3 w-3" /> Secure Password Reset
+                </button>
+              </div>
+            </form>
           </div>
-
-          {authError && (
-            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs p-3 rounded-none mb-5 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{authError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-4 font-sans">
-            <div>
-              <label className="text-[11px] uppercase tracking-wider font-semibold text-gray-600 dark:text-slate-300 block mb-1">
-                Administrator Account
-              </label>
-              <div className="relative">
-                <User className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@richardsrealty.com"
-                  className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] uppercase tracking-wider font-semibold text-gray-600 dark:text-slate-300 block mb-1">
-                Security Passcode
-              </label>
-              <div className="relative">
-                <Lock className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 pl-9 pr-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E]"
-                />
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
-              <p className="font-semibold text-[#0A1D37] dark:text-[#C5A02E]">Default Credentials:</p>
-              <p>Email: <span className="font-mono text-slate-800 dark:text-white">admin@richardsrealty.com</span></p>
-              <p>Password: <span className="font-mono text-slate-800 dark:text-white">richardsadmin</span></p>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-[#0A1D37] hover:bg-[#071426] text-white font-bold text-xs uppercase tracking-wider py-3.5 rounded-none transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border border-[#C5A02E]/30"
-            >
-              <ShieldCheck className="h-4 w-4 text-[#C5A02E]" /> Authenticate Administration Session
-            </button>
-          </form>
         </div>
-      </div>
+
+        {/* Secure Password Reset Modal */}
+        {isResetModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-700 max-w-md w-full p-6 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-[#C5A02E]" />
+                  <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white uppercase tracking-wider">
+                    Secure Password Reset
+                  </h3>
+                </div>
+                <button onClick={() => setIsResetModalOpen(false)} className="text-gray-400 hover:text-white cursor-pointer">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {resetError && (
+                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs p-3 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{resetError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleResetPassword} className="space-y-4 font-sans text-xs">
+                <p className="text-slate-600 dark:text-slate-300">
+                  Enter your administrative email and the corporate master security recovery key to authorize a credential update.
+                </p>
+
+                <div>
+                  <label className="font-semibold text-gray-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-[10px]">
+                    Administrator Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="admin@howardhomes.com"
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#C5A02E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-[10px]">
+                    Master Security Recovery Key
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={recoveryKey}
+                    onChange={(e) => setRecoveryKey(e.target.value)}
+                    placeholder="Enter master recovery key"
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#C5A02E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-[10px]">
+                    New Security Passcode
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#C5A02E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-[10px]">
+                    Confirm New Passcode
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Re-enter new passcode"
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#C5A02E]"
+                  />
+                </div>
+
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-[10px] text-amber-800 dark:text-amber-300">
+                  <span className="font-bold">Security Note:</span> The default master recovery key for bootstrap recovery is <code className="font-mono bg-amber-100 dark:bg-amber-900 px-1 py-0.5 font-bold">HOWARD-SECURE-2026</code>.
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsResetModalOpen(false)}
+                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wider text-[11px] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#0A1D37] hover:bg-[#071426] text-white font-bold uppercase tracking-wider text-[11px] cursor-pointer border border-[#C5A02E]/30"
+                  >
+                    Update Credentials
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -663,7 +877,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             </div>
             <div>
               <h1 className="font-serif font-bold text-sm tracking-wide text-white flex items-center gap-2">
-                Richards Realty <span className="text-[#C5A02E] text-xs font-sans font-normal px-1.5 py-0.5 bg-[#C5A02E]/10 border border-[#C5A02E]/30 hidden sm:inline-block">Executive Hub</span>
+                Howard Homes
               </h1>
               <p className="text-[10px] text-slate-400 hidden sm:block">Administrative Advisory & CRM System</p>
             </div>
@@ -780,13 +994,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
           w-64 bg-[#0A1D37] border-r border-[#0A1D37]/30 dark:border-slate-800 flex flex-col shrink-0 text-slate-300 transition-all z-30
           absolute md:static top-0 bottom-0 left-0 ${isMobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
         `}>
-          <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Activity className="h-3.5 w-3.5 text-[#C5A02E]" /> Session: Active
-            </div>
-            <span className="text-[10px] px-2 py-0.5 bg-[#C5A02E]/20 text-[#C5A02E] font-mono font-bold">2026.4</span>
-          </div>
-
           <nav className="flex-1 overflow-y-auto p-3 space-y-6 text-xs font-sans">
             
             {/* Executive Section */}
@@ -974,47 +1181,8 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
           {activeTab === 'overview' && (
             <div className="space-y-8 animate-in fade-in duration-300">
               
-              {/* Header Title */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-300 dark:border-slate-800">
-                <div>
-                  <div className="flex items-center gap-2 text-[#C5A02E] text-xs font-mono font-bold uppercase tracking-wider">
-                    <ShieldCheck className="h-4 w-4" /> Certified Advisory Control Tower
-                  </div>
-                  <h2 className="font-serif font-extrabold text-2xl sm:text-3xl text-[#0A1D37] dark:text-white tracking-tight">Executive Performance & CRM Overview</h2>
-                  <p className="text-gray-500 dark:text-slate-400 text-xs mt-1">
-                    Real-time metrics, booking trends, lead progress, and active client consultations across Richards Realty LLC.
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleExportCSV('users')}
-                    className="px-3.5 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-xs font-semibold text-[#0A1D37] dark:text-white hover:bg-slate-100 transition-colors flex items-center gap-2 cursor-pointer shadow-sm"
-                  >
-                    <Download className="h-4 w-4 text-[#C5A02E]" /> Export Users CSV
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('consultations')}
-                    className="px-4 py-2 bg-[#0A1D37] hover:bg-[#071426] text-white text-xs font-bold uppercase tracking-wider rounded-none transition-colors flex items-center gap-2 cursor-pointer shadow-md"
-                  >
-                    <Plus className="h-4 w-4 text-[#C5A02E]" /> New Briefing
-                  </button>
-                </div>
-              </div>
-
               {/* 10 Executive Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                
-                <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] uppercase font-bold text-gray-500 dark:text-slate-400">Total Registered Clients</span>
-                    <Users className="h-4 w-4 text-[#C5A02E]" />
-                  </div>
-                  <p className="text-2xl font-bold font-mono text-[#0A1D37] dark:text-white">{metrics.totalUsers}</p>
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" /> Centralized Profiles
-                  </p>
-                </div>
 
                 <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-4 shadow-sm hover:border-[#C5A02E] transition-colors">
                   <div className="flex items-center justify-between mb-2">
@@ -1389,7 +1557,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                                 </span>
                               </td>
                               <td className="py-3.5 px-3 text-slate-600 dark:text-slate-300 text-[11px]">
-                                {item.assignedTo || 'Arthur Richards'}
+                                {item.assignedTo || 'Michael Howard'}
                               </td>
                               <td className="py-3.5 px-3">
                                 <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
@@ -1533,7 +1701,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                               </span>
                             </td>
                             <td className="py-3.5 px-3 text-[#0A1D37] dark:text-slate-300 text-[11px]">
-                              {u.assignedAdmin || 'Arthur Richards'}
+                              {u.assignedAdmin || 'Michael Howard'}
                             </td>
                             <td className="py-3.5 px-3">
                               <span className="text-[11px] font-mono text-slate-500">
@@ -1716,6 +1884,32 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   </div>
                 )}
 
+                {/* Newsletter Subscribers Column */}
+                {(submissionFilter === 'all' || submissionFilter === 'subscribers') && (
+                  <div className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-800 p-6 shadow-sm">
+                    <h3 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white mb-3 pb-2 border-b">
+                      Newsletter Subscribers ({subscribers.length})
+                    </h3>
+                    <div className="space-y-3 max-h-96 overflow-y-auto font-sans text-xs">
+                      {subscribers.length === 0 ? (
+                        <p className="text-gray-400 text-center py-6">No newsletter subscribers registered yet.</p>
+                      ) : (
+                        subscribers.map(s => (
+                          <div key={s.id || s.email} className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-[#0A1D37] dark:text-white font-mono">{s.email}</p>
+                              <span className="text-[10px] text-gray-500 dark:text-slate-400">Subscribed: {s.createdAt ? s.createdAt.split('T')[0] : 'Recent'}</span>
+                            </div>
+                            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase">
+                              Active
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           )}
@@ -1874,7 +2068,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               <div className="flex items-center justify-between pb-4 border-b">
                 <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Market Insights & Blog Editor</h2>
                 <button
-                  onClick={() => { setIsBlogFormOpen(true); setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Richards Realty Advisory', readTime: '5 min read' }); }}
+                  onClick={() => { setIsBlogFormOpen(true); setBlogFormData({ id: '', title: '', category: 'Market Insights', shortDesc: '', content: '', image: '', author: 'Howard Homes Advisory', readTime: '5 min read' }); }}
                   className="px-4 py-2 bg-[#0A1D37] text-white text-xs font-bold uppercase cursor-pointer"
                 >
                   + New Publication
@@ -2036,7 +2230,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               <div className="flex items-center justify-between pb-4 border-b border-gray-300 dark:border-slate-800">
                 <div>
                   <h2 className="font-serif font-bold text-2xl text-[#0A1D37] dark:text-white">Vacancies & Recruitment</h2>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Post and manage career opportunities within Richards Realty Advisory & Investment Hub.</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Post and manage career opportunities within Howard Homes Advisory & Investment Hub.</p>
                 </div>
                 <button
                   onClick={() => {
@@ -2598,7 +2792,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   required
                   value={emailForm.subject}
                   onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-                  placeholder="e.g. Richards Realty Advisory Consultation Confirmation"
+                  placeholder="e.g. Howard Homes Advisory Consultation Confirmation"
                   className="w-full bg-slate-50 dark:bg-slate-800 border p-2 text-xs text-[#0A1D37] dark:text-white"
                 />
               </div>

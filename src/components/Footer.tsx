@@ -8,12 +8,11 @@ import FooterGoogleMap from './FooterGoogleMap';
 interface FooterProps {
   setTab: (tab: string) => void;
   onBookClick: () => void;
-  onAdminClick: () => void;
   googleMapIframe?: string;
   settings?: WebsiteSettings;
 }
 
-export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIframe, settings }: FooterProps) {
+export default function Footer({ setTab, onBookClick, googleMapIframe, settings }: FooterProps) {
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -60,7 +59,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
       if (response.ok) {
         setIsSubscribed(true);
         logAnalyticsEvent('signup');
-        toastSuccess('Your email address has been subscribed to our executive dispatch.', 'Subscription Confirmed');
+        toastSuccess("You have successfully subscribed to the company's newsletter!", 'Subscription Confirmed');
         setEmail('');
       } else {
         const data = await response.json();
@@ -119,7 +118,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
               {isSubscribed ? (
                 <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-none text-emerald-400 text-xs animate-in zoom-in-95 duration-200">
                   <CheckCircle2 className="h-5 w-5 shrink-0" />
-                  <span className="font-bold">Subscription Confirmed! Welcome to our advisory network.</span>
+                  <span className="font-bold">You have successfully subscribed to the company's newsletter!</span>
                 </div>
               ) : (
                 <form onSubmit={handleSubscribe} className="space-y-2">
@@ -165,7 +164,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
               </div>
               <div>
                 <span className="font-sans font-semibold text-base tracking-wider text-white block leading-none uppercase">
-                  {settings?.general?.companyName || "RICHARDS REALTY"}
+                  {settings?.general?.companyName || "HOWARD HOMES"}
                 </span>
                 <span className="text-[9px] uppercase font-sans tracking-[0.2em] text-[#C5A02E]">
                   LLC • Consultancy
@@ -173,7 +172,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
               </div>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed">
-              {settings?.seo?.metaDescription || "Richards Realty LLC is a premier corporate advisory and valuation firm. We deliver RICS-compliant valuations, commercial transaction consulting, facility management advice, and zoning-document compliance with strict integrity."}
+              {settings?.seo?.metaDescription || "Howard Homes LLC is a premier corporate advisory and valuation firm. We deliver RICS-compliant valuations, commercial transaction consulting, facility management advice, and zoning-document compliance with strict integrity."}
             </p>
           </div>
 
@@ -229,7 +228,7 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
             <ul className="space-y-3.5 text-xs">
               <li className="flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 text-[#C5A02E] shrink-0 mt-0.5" />
-                <span className="text-gray-400">{settings?.general?.address || "600 Montgomery St, 41st Floor, San Francisco, CA 94111"}</span>
+                <span className="text-gray-400">{settings?.general?.address || "1995 Woodlake Dr, Orange Park, FL 32003, USA"}</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 text-[#C5A02E] shrink-0" />
@@ -239,8 +238,8 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="h-4 w-4 text-[#C5A02E] shrink-0" />
-                <a href={`mailto:${settings?.general?.email || "consulting@richardsrealty.com"}`} className="text-gray-400 hover:text-white font-sans">
-                  {settings?.general?.email || "consulting@richardsrealty.com"}
+                <a href={`mailto:${settings?.general?.email || "consultation.howardhomes@hotmail.com"}`} className="text-gray-400 hover:text-white font-sans">
+                  {settings?.general?.email || "consultation.howardhomes@hotmail.com"}
                 </a>
               </li>
               <li className="flex items-start gap-2.5 pt-1.5 border-t border-gray-800">
@@ -267,21 +266,21 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
             <div className="space-y-1">
               <span className="text-xs text-white font-semibold uppercase block">Regulatory Audited Firm</span>
               <p className="text-[11px] text-gray-400 leading-normal">
-                {settings?.content?.footerText || `${settings?.general?.companyName || "Richards Realty LLC"} operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.`}
+                {settings?.content?.footerText || `${settings?.general?.companyName || "Howard Homes LLC"} operates as an accredited commercial advisory firm. All client engagement agreements are subjected to standard California municipal oversight and financial disclosure procedures. This website serves purely as a corporate informational directory.`}
               </p>
             </div>
             {/* Social Icons */}
             <div className="flex items-center gap-3">
-              <a id="footer-linkedin" href={settings?.social?.linkedin || "https://linkedin.com/company/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="LinkedIn" title="LinkedIn">
+              <a id="footer-linkedin" href={settings?.social?.linkedin || "https://linkedin.com/company/howardhomes"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="LinkedIn" title="LinkedIn">
                 <Linkedin className="h-4 w-4" />
               </a>
-              <a id="footer-twitter" href={settings?.social?.twitter || "https://twitter.com/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Twitter" title="Twitter">
+              <a id="footer-twitter" href={settings?.social?.twitter || "https://twitter.com/howardhomes"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Twitter" title="Twitter">
                 <Twitter className="h-4 w-4" />
               </a>
-              <a id="footer-facebook" href={settings?.social?.facebook || "https://facebook.com/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Facebook" title="Facebook">
+              <a id="footer-facebook" href={settings?.social?.facebook || "https://facebook.com/howardhomes"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Facebook" title="Facebook">
                 <Facebook className="h-4 w-4" />
               </a>
-              <a id="footer-instagram" href={settings?.social?.instagram || "https://instagram.com/richardsrealty"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Instagram" title="Instagram">
+              <a id="footer-instagram" href={settings?.social?.instagram || "https://instagram.com/howardhomes"} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-white text-[#0A1D37] hover:bg-slate-800 hover:text-[#C5A02E] rounded-none transition-colors flex items-center justify-center" aria-label="Instagram" title="Instagram">
                 <Instagram className="h-4 w-4" />
               </a>
               {settings?.general?.whatsappNumber && (
@@ -297,16 +296,13 @@ export default function Footer({ setTab, onBookClick, onAdminClick, googleMapIfr
       {/* Bottom bar */}
       <div className="bg-white border-t border-gray-200 py-6 text-[11px]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <p>© {new Date().getFullYear()} {settings?.general?.companyName || "Richards Realty LLC"}. All Rights Reserved. Accredited Corporate Real Estate Advisors.</p>
+          <p>© {new Date().getFullYear()} {settings?.general?.companyName || "Howard Homes LLC"}. All Rights Reserved. Accredited Corporate Real Estate Advisors.</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-slate-500">
             <button onClick={() => handleLinkClick('privacy')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Privacy Policy</button>
             <button onClick={() => handleLinkClick('terms')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Terms of Service</button>
             <button onClick={() => handleLinkClick('cookies')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Cookie Policy</button>
             <button onClick={() => handleLinkClick('disclaimer')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Disclaimer</button>
             <button onClick={() => handleLinkClick('sitemap')} className="hover:text-[#C5A02E] transition-colors cursor-pointer">Sitemap</button>
-            <button id="footer-admin-btn" onClick={onAdminClick} className="hover:text-[#C5A02E] text-[#0A1D37] font-semibold transition-colors cursor-pointer flex items-center gap-1">
-              <Lock className="h-3 w-3 text-[#C5A02E]" /> Admin Portal
-            </button>
           </div>
         </div>
       </div>

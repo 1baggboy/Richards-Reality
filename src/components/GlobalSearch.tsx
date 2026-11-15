@@ -244,7 +244,7 @@ export default function GlobalSearch({ isOpen, onClose, onSelect, blogs, team, s
               <span className="text-[9px] text-gray-400 dark:text-slate-500 uppercase font-bold tracking-widest">Select</span>
             </div>
           </div>
-          <p className="text-[10px] text-[#C5A02E] font-bold italic tracking-tighter">Richards Realty Global Index</p>
+          <p className="text-[10px] text-[#C5A02E] font-bold italic tracking-tighter">Howard Homes Global Index</p>
         </div>
       </div>
     </div>

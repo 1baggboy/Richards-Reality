@@ -72,7 +72,7 @@ export default function Header({ currentTab, setTab, onBookClick, onApplyClick, 
             </div>
             <div className="flex flex-col">
               <span className="font-serif text-lg sm:text-xl font-bold tracking-tight uppercase text-[#0A1D37] dark:text-white whitespace-nowrap">
-                {settings?.general?.companyName || "Richards Realty"}
+                {settings?.general?.companyName || "Howard Homes"}
               </span>
               <span className="text-[9px] uppercase tracking-[0.3em] text-[#C5A02E] font-semibold whitespace-nowrap">
                 Consultancy & Excellence

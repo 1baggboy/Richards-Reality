@@ -246,7 +246,7 @@ export default function SupportWidget() {
                       required 
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Johnathan Richards"
+                      placeholder="e.g. Michael Howard"
                       className="w-full bg-[#F4F7F9] dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-3 py-2.5 text-xs text-[#0A1D37] dark:text-white focus:outline-none focus:border-[#C5A02E] rounded-none"
                     />
                   </div>
@@ -279,7 +279,7 @@ export default function SupportWidget() {
                       <div className="w-8 h-8 bg-[#C5A02E]/20 text-[#C5A02E] rounded-full flex items-center justify-center mx-auto">
                         <MessageCircle className="h-4 w-4" />
                       </div>
-                      <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-widest">Connected with Richards Advisory</p>
+                      <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-widest">Connected with Howard Advisory</p>
                     </div>
                   )}
                   {messages.map((msg) => (

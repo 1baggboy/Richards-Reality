@@ -53,10 +53,10 @@ export function PrintHeader({
   documentType = "Administrative Client Record",
   settings 
 }: PrintHeaderProps) {
-  const companyName = settings?.general?.companyName || "Richards Realty LLC";
+  const companyName = settings?.general?.companyName || "Howard Homes LLC";
   const phone = settings?.general?.phone || "+1 (800) 555-0190";
-  const email = settings?.general?.email || "consulting@richardsrealty.com";
-  const address = settings?.general?.address || "600 Montgomery St, 41st Floor, San Francisco, CA 94111";
+  const email = settings?.general?.email || "consultation.howardhomes@hotmail.com";
+  const address = settings?.general?.address || "1995 Woodlake Dr, Orange Park, FL 32003, USA";
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -114,7 +114,7 @@ export function PrintHeader({
             <span className="font-bold text-slate-900">Email:</span> {email}
           </p>
           <p>
-            <span className="font-bold text-slate-900">Portal:</span> www.richardsrealty.com | <span className="font-bold text-slate-900">DRE:</span> #01928471
+            <span className="font-bold text-slate-900">Portal:</span> www.howardhomes.com | <span className="font-bold text-slate-900">DRE:</span> #01928471
           </p>
           {referenceNumber && (
             <p className="font-mono font-bold text-[#0A1D37] pt-1 text-[11px] text-[#0A1D37]">
@@ -140,10 +140,10 @@ interface PrintFooterProps {
  * contact details, and compliance certifications.
  */
 export function PrintFooter({ settings }: PrintFooterProps) {
-  const companyName = settings?.general?.companyName || "Richards Realty LLC";
+  const companyName = settings?.general?.companyName || "Howard Homes LLC";
   const phone = settings?.general?.phone || "+1 (800) 555-0190";
-  const email = settings?.general?.email || "consulting@richardsrealty.com";
-  const address = settings?.general?.address || "600 Montgomery St, 41st Floor, San Francisco, CA 94111";
+  const email = settings?.general?.email || "consultation.howardhomes@hotmail.com";
+  const address = settings?.general?.address || "1995 Woodlake Dr, Orange Park, FL 32003, USA";
 
   return (
     <div className="print-only print-footer w-full mt-8 pt-4 border-t border-slate-300 text-[8pt] text-slate-600 font-sans space-y-1.5">
