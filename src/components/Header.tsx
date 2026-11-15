@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Phone, Sun, Moon } from 'lucide-react';
+import { Menu, X, Phone } from 'lucide-react';
 import { WebsiteSettings } from '../types';
-import { useTheme } from '../context/ThemeContext';
 
 interface HeaderProps {
   currentTab: string;
@@ -13,7 +12,6 @@ interface HeaderProps {
 }
 
 export default function Header({ currentTab, setTab, onBookClick, onApplyClick, settings }: HeaderProps) {
-  const { theme, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -99,15 +97,6 @@ export default function Header({ currentTab, setTab, onBookClick, onApplyClick, 
 
           {/* Action Buttons */}
           <div className="hidden lg:flex items-center gap-4 xl:gap-5 shrink-0">
-            <button 
-              onClick={toggleTheme}
-              className="p-2 text-[#0A1D37] dark:text-slate-200 hover:text-[#C5A02E] transition-colors cursor-pointer"
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              aria-label="Toggle theme"
-            >
-              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            </button>
-
             <button
               onClick={() => handleNavClick('track')}
               className={`px-3 py-2 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer font-sans whitespace-nowrap ${
@@ -137,13 +126,6 @@ export default function Header({ currentTab, setTab, onBookClick, onApplyClick, 
 
           {/* Mobile / Tablet Drawer Toggle */}
           <div className="flex items-center gap-2 xl:hidden">
-            <button
-              onClick={toggleTheme}
-              className="p-2 text-[#0A1D37] dark:text-white hover:text-[#C5A02E] transition-colors cursor-pointer"
-              aria-label="Toggle theme"
-            >
-              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </button>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 text-[#0A1D37] dark:text-white hover:text-[#0A1D37] transition-colors cursor-pointer"
