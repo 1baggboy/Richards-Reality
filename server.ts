@@ -1,8 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { createServer as createViteServer } from 'vite';
-import { initializeApp as initAdminApp } from 'firebase-admin/app';
+import { initializeApp as initAdminApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { 
   ConsultationRequest, 
@@ -28,7 +27,9 @@ import {
 
 const app = express();
 const PORT = 3000;
-const DB_FILE = path.join(process.cwd(), 'server_data.json');
+const IS_VERCEL = Boolean(process.env.VERCEL);
+const SEED_DB_FILE = path.join(process.cwd(), 'server_data.json');
+const DB_FILE = IS_VERCEL ? '/tmp/server_data.json' : SEED_DB_FILE;
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -431,9 +432,13 @@ function handleFirestoreError(err: any, operationName: string) {
     errMsg.includes("PERMISSION_DENIED") ||
     errMsg.includes("Permission denied") ||
     errMsg.includes("Forbidden") ||
-    err?.code === 7
+    errMsg.includes("Could not load the default credentials") ||
+    errMsg.includes("UNAUTHENTICATED") ||
+    errMsg.includes("invalid_grant") ||
+    err?.code === 7 ||
+    err?.code === 16
   ) {
-    console.warn("⚠️ Firestore access denied (PERMISSION_DENIED). Disabling Firestore integration and falling back completely to local JSON database storage (server_data.json).");
+    console.warn("⚠️ Firestore access unavailable or denied. Disabling Firestore integration and using JSON database storage.");
     firestoreDb = null;
   }
 }
@@ -589,30 +594,38 @@ async function initFirestore() {
       return;
     }
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    const app = initAdminApp({
+    const adminApp = getApps().length > 0 ? getApps()[0] : initAdminApp({
       projectId: config.projectId,
     });
     let dbId = config.firestoreDatabaseId;
     if (!dbId || dbId === 'default' || dbId === '(default)') {
       dbId = undefined;
     }
-    firestoreDb = getFirestore(app, dbId);
+    firestoreDb = getFirestore(adminApp, dbId);
     console.log(`Firebase Admin initialized successfully with project: ${config.projectId}, DB: ${dbId || '(default)'}`);
     
     await syncFromFirestore();
   } catch (err) {
     console.error("Failed to initialize Firebase/Firestore:", err);
+    firestoreDb = null;
   }
 }
 
 // Load or Initialize database file
 async function loadDatabase() {
   try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf8');
+    const sourceFile = fs.existsSync(DB_FILE)
+      ? DB_FILE
+      : (IS_VERCEL && fs.existsSync(SEED_DB_FILE) ? SEED_DB_FILE : null);
+
+    if (sourceFile) {
+      const data = fs.readFileSync(sourceFile, 'utf8');
       const loaded = JSON.parse(data);
       DB = { ...DB, ...loaded };
-      console.log(`Database loaded successfully from ${DB_FILE}`);
+      if (IS_VERCEL && sourceFile !== DB_FILE) {
+        saveDatabase();
+      }
+      console.log(`Database loaded successfully from ${sourceFile}`);
     } else {
       saveDatabase();
       writeLog("Database Initialization", "Initial database seed created successfully.");
@@ -647,7 +660,12 @@ function writeLog(action: string, details: string) {
   firestoreAddOrUpdateRecord('logs', logEntry);
 }
 
-loadDatabase();
+const dbReadyPromise = loadDatabase();
+
+app.use('/api', async (_req, _res, next) => {
+  await dbReadyPromise;
+  next();
+});
 
 // --- API ENDPOINTS ---
 
@@ -1651,8 +1669,11 @@ app.post('/api/admin/refresh', checkAdminAuth, async (req, res) => {
 
 // --- VITE DEV SERVER AND STATIC ASSETS CLIENT MOUNTING ---
 async function startServer() {
+  await dbReadyPromise;
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1671,4 +1692,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!IS_VERCEL) {
+  startServer();
+}
+
+export default app;

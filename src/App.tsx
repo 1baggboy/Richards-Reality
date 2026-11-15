@@ -18,10 +18,52 @@ import TrackApplication from './components/TrackApplication';
 import { PrintHeader, PrintFooter, handleImmediatePrint } from './components/PrintHeaderFooter';
 import { BlogPost, TeamMember, GalleryItem, JobListing, WebsiteSettings, Testimonial } from './types';
 import { useToast } from './components/ui/Toast';
+import {
+  VALID_TABS,
+  DEFAULT_WEBSITE_SETTINGS,
+  DEFAULT_PUBLIC_BLOGS,
+  DEFAULT_PUBLIC_TEAM,
+  DEFAULT_PUBLIC_GALLERY,
+  DEFAULT_PUBLIC_CAREERS,
+  DEFAULT_PUBLIC_TESTIMONIALS,
+  mergeWebsiteSettings
+} from './lib/defaultPublicData';
+
+function resolveTabFromLocation(): string {
+  try {
+    const cleanPath = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    const segment = cleanPath.split('/')[0] || '';
+    if (!segment || segment === 'admin') {
+      const hashTab = window.location.hash.replace(/^#/, '').toLowerCase();
+      if (hashTab && hashTab !== 'admin' && VALID_TABS.has(hashTab)) {
+        return hashTab;
+      }
+      return 'home';
+    }
+    if (VALID_TABS.has(segment)) {
+      return segment;
+    }
+  } catch {
+    // Fallback to home
+  }
+  return 'home';
+}
+
+async function fetchJsonSafe<T>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
-  const [currentTab, setTab] = useState('home');
+  const [currentTab, setCurrentTab] = useState<string>(() => resolveTabFromLocation());
   const [trackQuery, setTrackQuery] = useState('');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -31,6 +73,26 @@ export default function App() {
   const [blogScrollProgress, setBlogScrollProgress] = useState(0);
   const [isPrintingPortfolio, setIsPrintingPortfolio] = useState(false);
   const [gmpQuotaExceeded, setGmpQuotaExceeded] = useState(false);
+
+  const setTab = (nextTab: string) => {
+    const safeTab = VALID_TABS.has(nextTab) ? nextTab : 'home';
+    setCurrentTab(safeTab);
+
+    try {
+      if (!isAdminOpen) {
+        const targetPath = safeTab === 'home' ? '/' : `/${safeTab}`;
+        if (window.location.pathname !== targetPath) {
+          window.history.pushState({ tab: safeTab }, '', targetPath);
+        }
+      }
+    } catch {
+      // Ignore history API restrictions
+    }
+  };
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentTab]);
 
   useEffect(() => {
     const handleGmpQuota = () => setGmpQuotaExceeded(true);
@@ -42,7 +104,22 @@ export default function App() {
       setIsAdminOpen(true);
     }
 
-    return () => window.removeEventListener('gmp-quota-exceeded', handleGmpQuota);
+    const handlePopState = () => {
+      const paramsNow = new URLSearchParams(window.location.search);
+      if (paramsNow.get('admin') === 'true' || window.location.hash === '#admin' || window.location.pathname.includes('/admin')) {
+        setIsAdminOpen(true);
+      } else {
+        setIsAdminOpen(false);
+        setCurrentTab(resolveTabFromLocation());
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('gmp-quota-exceeded', handleGmpQuota);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   const handleTrackApplication = (refNumber?: string) => {
@@ -63,30 +140,14 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Dynamic state loaded from the backend APIs
-  const [settings, setSettings] = useState<WebsiteSettings>({
-    general: {
-      companyName: "Howard Homes LLC",
-      phone: "+1 (800) 555-0190",
-      email: "consultation.howardhomes@hotmail.com",
-      address: "1995 Woodlake Dr, Orange Park, FL 32003, USA",
-      workingHours: "Mon - Fri: 8:00 AM - 6:00 PM (PST), Sat: By Appointment",
-      whatsappNumber: "18005550190",
-      googleMapIframe: ""
-    },
-    seo: {
-      metaTitle: "Howard Homes LLC | Elite Corporate Real Estate Advisory & Valuation",
-      metaDescription: "Howard Homes LLC is a premier corporate real estate consultancy.",
-      openGraphImage: ""
-    },
-    social: { linkedin: "", twitter: "", facebook: "", instagram: "" }
-  });
+  // Dynamic state loaded from the backend APIs (with safe client-side defaults)
+  const [settings, setSettings] = useState<WebsiteSettings>(DEFAULT_WEBSITE_SETTINGS);
 
-  const [blogs, setBlogs] = useState<BlogPost[]>([]);
-  const [team, setTeam] = useState<TeamMember[]>([]);
-  const [gallery, setGallery] = useState<GalleryItem[]>([]);
-  const [careers, setCareers] = useState<JobListing[]>([]);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [blogs, setBlogs] = useState<BlogPost[]>(DEFAULT_PUBLIC_BLOGS);
+  const [team, setTeam] = useState<TeamMember[]>(DEFAULT_PUBLIC_TEAM);
+  const [gallery, setGallery] = useState<GalleryItem[]>(DEFAULT_PUBLIC_GALLERY);
+  const [careers, setCareers] = useState<JobListing[]>(DEFAULT_PUBLIC_CAREERS);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(DEFAULT_PUBLIC_TESTIMONIALS);
 
   // FAQ open states
   const [faqOpen, setFaqOpen] = useState<Record<string, boolean>>({});
@@ -108,20 +169,20 @@ export default function App() {
   const loadPublicData = async () => {
     try {
       const [resSettings, resBlogs, resTeam, resGallery, resCareers, resTestimonials] = await Promise.all([
-        fetch('/api/settings').then(r => r.json()),
-        fetch('/api/blogs').then(r => r.json()),
-        fetch('/api/team').then(r => r.json()),
-        fetch('/api/gallery').then(r => r.json()),
-        fetch('/api/careers').then(r => r.json()),
-        fetch('/api/testimonials').then(r => r.json())
+        fetchJsonSafe<WebsiteSettings & { error?: string }>('/api/settings'),
+        fetchJsonSafe<BlogPost[]>('/api/blogs'),
+        fetchJsonSafe<TeamMember[]>('/api/team'),
+        fetchJsonSafe<GalleryItem[]>('/api/gallery'),
+        fetchJsonSafe<JobListing[]>('/api/careers'),
+        fetchJsonSafe<Testimonial[]>('/api/testimonials')
       ]);
 
-      if (resSettings && !resSettings.error) setSettings(resSettings);
-      if (Array.isArray(resBlogs)) setBlogs(resBlogs);
-      if (Array.isArray(resTeam)) setTeam(resTeam);
-      if (Array.isArray(resGallery)) setGallery(resGallery);
+      if (resSettings && !resSettings.error) setSettings(mergeWebsiteSettings(resSettings));
+      if (Array.isArray(resBlogs) && resBlogs.length > 0) setBlogs(resBlogs);
+      if (Array.isArray(resTeam) && resTeam.length > 0) setTeam(resTeam);
+      if (Array.isArray(resGallery) && resGallery.length > 0) setGallery(resGallery);
       if (Array.isArray(resCareers)) setCareers(resCareers);
-      if (Array.isArray(resTestimonials)) setTestimonials(resTestimonials);
+      if (Array.isArray(resTestimonials) && resTestimonials.length > 0) setTestimonials(resTestimonials);
     } catch (err) {
       console.error("Failed synchronizing corporate database metrics:", err);
     }
@@ -925,26 +986,36 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {team.map((member) => (
-                <div key={member.id} className="bg-[#F4F7F9]/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-800 rounded-none overflow-hidden flex flex-col justify-between shadow-xl">
-                  <div className="h-64 bg-gray-100 dark:bg-slate-800 overflow-hidden">
-                    <img src={member.image} alt={member.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                  <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white">{member.name}</h4>
-                      <p className="text-xs text-[#C5A02E] font-sans uppercase tracking-wide">{member.position}</p>
-                      <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed pt-2 line-clamp-4">{member.bio}</p>
+            {team.length === 0 ? (
+              <div className="bg-[#F4F7F9]/40 border border-gray-200 p-8 text-center">
+                <p className="text-sm text-gray-500 font-sans">Team profiles are currently being updated.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {team.map((member) => (
+                  <div key={member.id} className="bg-[#F4F7F9]/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-800 rounded-none overflow-hidden flex flex-col justify-between shadow-xl">
+                    <div className="h-64 bg-gray-100 dark:bg-slate-800 overflow-hidden">
+                      <img src={member.image} alt={member.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </div>
-                    <div className="pt-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between text-xs font-sans">
-                      <a href={`mailto:${member.email}`} className="hover:text-[#C5A02E] dark:text-slate-400 dark:hover:text-[#C5A02E] transition-colors">Email</a>
-                      <a href={member.linkedin} target="_blank" rel="noopener" className="hover:text-[#C5A02E] dark:text-slate-400 dark:hover:text-[#C5A02E] transition-colors">LinkedIn</a>
+                    <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
+                      <div className="space-y-1">
+                        <h4 className="font-serif font-bold text-base text-[#0A1D37] dark:text-white">{member.name}</h4>
+                        <p className="text-xs text-[#C5A02E] font-sans uppercase tracking-wide">{member.position}</p>
+                        <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed pt-2 line-clamp-4">{member.bio}</p>
+                      </div>
+                      <div className="pt-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between text-xs font-sans">
+                        {member.email ? (
+                          <a href={`mailto:${member.email}`} className="hover:text-[#C5A02E] dark:text-slate-400 dark:hover:text-[#C5A02E] transition-colors">Email</a>
+                        ) : <span />}
+                        {member.linkedin ? (
+                          <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-[#C5A02E] dark:text-slate-400 dark:hover:text-[#C5A02E] transition-colors">LinkedIn</a>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -977,31 +1048,37 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
             </div>
 
             {/* Responsive grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredGallery.map((item) => (
-                <div 
-                  key={item.id}
-                  onClick={() => setLightboxItem(item)}
-                  className="group bg-[#F4F7F9]/30 dark:bg-slate-900/30 border border-gray-200 dark:border-slate-800 rounded-none overflow-hidden shadow-xl cursor-pointer hover:border-gray-300 dark:hover:border-slate-700 transition-all"
-                >
-                  <div className="h-64 overflow-hidden relative">
-                    <img 
-                      src={item.image} 
-                      alt={item.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A1D37]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                      <p className="text-xs font-semibold text-white truncate w-full">{item.title}</p>
+            {filteredGallery.length === 0 ? (
+              <div className="bg-[#F4F7F9]/40 border border-gray-200 p-8 text-center">
+                <p className="text-sm text-gray-500 font-sans">No media assets found for this category.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredGallery.map((item) => (
+                  <div 
+                    key={item.id}
+                    onClick={() => setLightboxItem(item)}
+                    className="group bg-[#F4F7F9]/30 dark:bg-slate-900/30 border border-gray-200 dark:border-slate-800 rounded-none overflow-hidden shadow-xl cursor-pointer hover:border-gray-300 dark:hover:border-slate-700 transition-all"
+                  >
+                    <div className="h-64 overflow-hidden relative">
+                      <img 
+                        src={item.image} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A1D37]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                        <p className="text-xs font-semibold text-white truncate w-full">{item.title}</p>
+                      </div>
+                    </div>
+                    <div className="p-4 flex items-center justify-between">
+                      <span className="text-[10px] text-[#C5A02E] font-sans uppercase tracking-wider">{item.category}</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-sans group-hover:text-[#0A1D37] dark:group-hover:text-white transition-colors">Expand View →</span>
                     </div>
                   </div>
-                  <div className="p-4 flex items-center justify-between">
-                    <span className="text-[10px] text-[#C5A02E] font-sans uppercase tracking-wider">{item.category}</span>
-                    <span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-sans group-hover:text-[#0A1D37] dark:group-hover:text-white transition-colors">Expand View →</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Lightbox Modal */}
             {lightboxItem && (
@@ -1083,7 +1160,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
                       <div className="space-y-1.5 pt-2 text-xs text-gray-500 dark:text-slate-400">
                         <p className="font-semibold text-[#0A1D37] dark:text-white">Key Requirements:</p>
                         <ul className="list-disc pl-5 space-y-1">
-                          {job.requirements.map((req, idx) => (
+                          {(job.requirements || []).map((req, idx) => (
                             <li key={idx}>{req}</li>
                           ))}
                         </ul>
@@ -1227,7 +1304,7 @@ Over the past 25 years, we have structured acquisition reviews, verified environ
             </div>
 
             {(() => {
-              const faqs = settings?.content?.faqs || [];
+              const faqs = Array.isArray(settings?.content?.faqs) ? settings.content.faqs : [];
               const categories = ['Corporate', 'Valuations', 'Legal'] as const;
               
               return (
@@ -1393,7 +1470,7 @@ By engaging with this website, you acknowledge that ${settings.general?.companyN
       </main>
 
       {/* Corporate Footer Section */}
-      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} googleMapIframe={settings.general.googleMapIframe} settings={settings} />
+      <Footer setTab={setTab} onBookClick={() => setTab('consultation')} googleMapIframe={settings?.general?.googleMapIframe || ''} settings={settings} />
 
       {/* Floating Back to Top Button */}
       {showScrollTop && (

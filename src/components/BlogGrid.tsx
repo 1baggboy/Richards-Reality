@@ -8,7 +8,7 @@ interface BlogGridProps {
   onBlogClick?: (blog: BlogPost) => void;
 }
 
-export default function BlogGrid({ blogs }: BlogGridProps) {
+export default function BlogGrid({ blogs = [] }: BlogGridProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [readingBlog, setReadingBlog] = useState<BlogPost | null>(null);
@@ -28,17 +28,20 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
     };
   }, [readingBlog]);
 
-  // Derive unique categories
-  const categories = ['All', ...Array.from(new Set(blogs.map(b => b.category)))];
+  const safeBlogs = Array.isArray(blogs) ? blogs : [];
 
-  const filteredBlogs = blogs.filter(blog => {
-    const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          blog.shortDesc.toLowerCase().includes(searchTerm.toLowerCase());
+  // Derive unique categories
+  const categories = ['All', ...Array.from(new Set(safeBlogs.map(b => b.category || 'Market Insights')))];
+
+  const filteredBlogs = safeBlogs.filter(blog => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = (blog.title || '').toLowerCase().includes(q) || 
+                          (blog.shortDesc || '').toLowerCase().includes(q);
     const matchesCategory = selectedCategory === 'All' || blog.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const featuredBlog = blogs[0];
+  const featuredBlog = safeBlogs[0];
 
   return (
     <div className="space-y-12">
@@ -148,7 +151,7 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
                   {blog.shortDesc}
                 </p>
                 <div className="pt-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between text-xs font-semibold">
-                  <span className="text-gray-500 dark:text-slate-400 text-[11px] tabular-nums truncate max-w-[150px]">{blog.author.split(',')[0]}</span>
+                  <span className="text-gray-500 dark:text-slate-400 text-[11px] tabular-nums truncate max-w-[150px]">{(blog.author || 'Howard Homes').split(',')[0]}</span>
                   <span className="text-[#C5A02E] group-hover:translate-x-1 transition-transform flex items-center gap-0.5">
                     Read <ChevronRight className="h-3.5 w-3.5" />
                   </span>
@@ -213,10 +216,10 @@ export default function BlogGrid({ blogs }: BlogGridProps) {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-y border-gray-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-[#C5A02E]/10 text-[#C5A02E] flex items-center justify-center font-bold text-sm">
-                    {readingBlog.author.substring(0, 2)}
+                    {(readingBlog.author || 'HH').substring(0, 2)}
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#0A1D37] dark:text-white">{readingBlog.author}</p>
+                    <p className="text-xs font-semibold text-[#0A1D37] dark:text-white">{readingBlog.author || 'Howard Homes Advisory'}</p>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-sans">Howard Homes Research & Intelligence</p>
                   </div>
                 </div>
